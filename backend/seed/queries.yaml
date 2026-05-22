@@ -1,0 +1,556 @@
+version: v1
+queries:
+
+  # ── TRANSACTIONAL ─────────────────────────────────────────────────────────
+
+  - id: T1
+    query_text: "Cheapest roundtrip flights from LA to New York this weekend"
+    intent: Transactional
+    domain: Single
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Single
+      trip_length: Weekend
+      personalization: Cold start
+    assertions:
+      - id: T1-A1
+        text: The response names at least one specific airline and a price for the LA–NY route
+        level: critical
+        dimension: specificity
+      - id: T1-A2
+        text: The response covers both Saturday and Sunday departure options or explains which day is cheaper
+        level: critical
+        dimension: actionability
+      - id: T1-A3
+        text: The response includes a booking recommendation or link to check fares
+        level: expected
+        dimension: actionability
+      - id: T1-A4
+        text: The response mentions airport options (LAX/BUR/LGB vs JFK/LGA/EWR) and their impact on price
+        level: expected
+        dimension: specificity
+
+  - id: T2
+    query_text: "Hotels near Trastevere in Rome, 4 nights July 12–16, budget €120/night"
+    intent: Transactional
+    domain: Single
+    query_attrs:
+      geographic_specificity: Neighborhood
+      constraint_count: Multi
+      trip_length: Weekend
+      personalization: Cold start
+    assertions:
+      - id: T2-A1
+        text: The response names at least two specific hotels near Trastevere
+        level: critical
+        dimension: specificity
+      - id: T2-A2
+        text: All recommended hotels are priced at or below €120/night or the response acknowledges budget constraints
+        level: critical
+        dimension: accuracy
+      - id: T2-A3
+        text: The response includes a distance or walking time from Trastevere for the recommended hotels
+        level: expected
+        dimension: actionability
+      - id: T2-A4
+        text: The response mentions that July is peak season and advises booking in advance
+        level: expected
+        dimension: accuracy
+
+  - id: T3
+    query_text: "Nonstop flights from Seattle to Tokyo — compare prices across airlines"
+    intent: Transactional
+    domain: Comparison
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Single
+      trip_length: Week
+      personalization: Cold start
+    assertions:
+      - id: T3-A1
+        text: The response names the airlines that fly nonstop from Seattle to Tokyo (ANA and/or Delta)
+        level: critical
+        dimension: accuracy
+      - id: T3-A2
+        text: The response provides at least one price or price range for the nonstop route
+        level: critical
+        dimension: specificity
+      - id: T3-A3
+        text: The response distinguishes nonstop from connecting flights explicitly
+        level: expected
+        dimension: accuracy
+      - id: T3-A4
+        text: The response mentions typical flight duration for the nonstop route (~9–10 hours)
+        level: expected
+        dimension: specificity
+
+  - id: T4
+    query_text: "What airline has the best business class from NYC to Dubai?"
+    intent: Transactional
+    domain: Comparison
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Single
+      trip_length: Week
+      personalization: Cold start
+    assertions:
+      - id: T4-A1
+        text: The response mentions Emirates and/or Etihad as primary options on the NYC–Dubai route
+        level: critical
+        dimension: accuracy
+      - id: T4-A2
+        text: The response provides a concrete recommendation with reasoning (e.g., seat type, suite privacy, catering)
+        level: critical
+        dimension: specificity
+      - id: T4-A3
+        text: The response includes approximate business class price range for the route
+        level: expected
+        dimension: actionability
+      - id: T4-A4
+        text: The response mentions that Emirates operates out of JFK and Etihad also routes via Abu Dhabi
+        level: expected
+        dimension: accuracy
+
+  - id: T5
+    query_text: "I need a car rental in Lisbon for 7 days, want something fuel-efficient"
+    intent: Transactional
+    domain: Single
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Multi
+      trip_length: Week
+      personalization: Cold start
+    assertions:
+      - id: T5-A1
+        text: The response names at least one car rental company operating in Lisbon
+        level: critical
+        dimension: specificity
+      - id: T5-A2
+        text: The response recommends a fuel-efficient or hybrid vehicle category
+        level: critical
+        dimension: accuracy
+      - id: T5-A3
+        text: The response mentions that driving and parking in central Lisbon is difficult and recommends using transit for the city itself
+        level: expected
+        dimension: accuracy
+      - id: T5-A4
+        text: The response gives an approximate weekly rental price or daily rate
+        level: expected
+        dimension: actionability
+
+  # ── ITINERARY ─────────────────────────────────────────────────────────────
+
+  - id: I1
+    query_text: "Build me a 5-day Tokyo itinerary, first visit, mix of culture and food, moderate budget"
+    intent: Itinerary
+    domain: Multi-Step
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Multi
+      trip_length: Week
+      personalization: Stated preferences
+    assertions:
+      - id: I1-A1
+        text: The response provides content for all 5 days, not just 3 or 4
+        level: critical
+        dimension: actionability
+      - id: I1-A2
+        text: The response names specific neighborhoods or areas (e.g., Shinjuku, Asakusa, Shibuya, Harajuku, Yanaka)
+        level: critical
+        dimension: specificity
+      - id: I1-A3
+        text: The response includes at least one specific restaurant or food market by name
+        level: expected
+        dimension: specificity
+      - id: I1-A4
+        text: The response includes at least one cultural site (temple, shrine, or museum) by name
+        level: expected
+        dimension: specificity
+      - id: I1-A5
+        text: The itinerary groups nearby attractions on the same day to minimize transit
+        level: expected
+        dimension: actionability
+
+  - id: I2
+    query_text: "Weekend trip to New Orleans for two — love food and live music, not touristy"
+    intent: Itinerary
+    domain: Multi-Step
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Multi
+      trip_length: Weekend
+      personalization: Stated preferences
+    assertions:
+      - id: I2-A1
+        text: The response recommends Frenchmen Street for live music rather than (or in addition to) Bourbon Street
+        level: critical
+        dimension: accuracy
+      - id: I2-A2
+        text: The response names at least two specific restaurants in New Orleans
+        level: critical
+        dimension: specificity
+      - id: I2-A3
+        text: The itinerary covers both Friday evening, Saturday, and Sunday
+        level: expected
+        dimension: actionability
+      - id: I2-A4
+        text: The response mentions a neighborhood beyond the French Quarter (e.g., Bywater, Marigny, Garden District)
+        level: expected
+        dimension: specificity
+
+  - id: I3
+    query_text: "7-day Greek island hopping, Athens plus 2 islands, budget-conscious"
+    intent: Itinerary
+    domain: Multi-Step
+    query_attrs:
+      geographic_specificity: Country
+      constraint_count: Multi
+      trip_length: Week
+      personalization: Stated preferences
+    assertions:
+      - id: I3-A1
+        text: The response recommends specific islands by name (not just "Greek islands")
+        level: critical
+        dimension: specificity
+      - id: I3-A2
+        text: The response mentions ferry travel between islands as the primary transport method
+        level: critical
+        dimension: accuracy
+      - id: I3-A3
+        text: The response allocates a specific number of days to Athens vs the islands
+        level: expected
+        dimension: actionability
+      - id: I3-A4
+        text: For a budget-conscious traveler, the response avoids recommending Mykonos as a primary island (or flags its cost)
+        level: expected
+        dimension: accuracy
+
+  - id: I4
+    query_text: "Family road trip Denver to Grand Canyon, 4 days, 2 kids under 10"
+    intent: Itinerary
+    domain: Multi-Step
+    query_attrs:
+      geographic_specificity: Country
+      constraint_count: Multi
+      trip_length: Weekend
+      personalization: Persona context
+    assertions:
+      - id: I4-A1
+        text: The response provides a day-by-day driving route with stopping points
+        level: critical
+        dimension: actionability
+      - id: I4-A2
+        text: The response mentions the approximate driving time from Denver to Grand Canyon (about 7–8 hours direct)
+        level: critical
+        dimension: accuracy
+      - id: I4-A3
+        text: The response includes at least one kid-friendly activity or stop along the route
+        level: expected
+        dimension: specificity
+      - id: I4-A4
+        text: The response recommends the South Rim over the North Rim (more accessible) for a 4-day trip
+        level: expected
+        dimension: accuracy
+
+  - id: I5
+    query_text: "3-day Austin weekend for food and music, first time visiting"
+    intent: Itinerary
+    domain: Multi-Step
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: None
+      trip_length: Weekend
+      personalization: Cold start
+    assertions:
+      - id: I5-A1
+        text: The response names at least one specific BBQ restaurant (Franklin, La Barbecue, Valentina's, or similar)
+        level: critical
+        dimension: specificity
+      - id: I5-A2
+        text: The response covers 6th Street or East 6th for nightlife/music
+        level: critical
+        dimension: specificity
+      - id: I5-A3
+        text: The response mentions South Congress (SoCo) as a neighborhood worth visiting
+        level: expected
+        dimension: specificity
+      - id: I5-A4
+        text: The response names at least one non-BBQ restaurant worth trying in Austin
+        level: expected
+        dimension: specificity
+
+  # ── PERSONALIZED ──────────────────────────────────────────────────────────
+
+  - id: P1
+    query_text: "I loved Tulum in 2019 before it got ruined. What's the next underrated beach destination?"
+    intent: Personalized
+    domain: Open-Ended
+    query_attrs:
+      geographic_specificity: Continent
+      constraint_count: Single
+      trip_length: Week
+      personalization: Stated preferences
+    assertions:
+      - id: P1-A1
+        text: The response recommends a destination that is genuinely less touristy than Tulum is today
+        level: critical
+        dimension: accuracy
+      - id: P1-A2
+        text: The response names at least one specific destination (not just "somewhere in Mexico")
+        level: critical
+        dimension: specificity
+      - id: P1-A3
+        text: The response explains what makes the recommendation similar in vibe to pre-tourist-boom Tulum
+        level: expected
+        dimension: accuracy
+      - id: P1-A4
+        text: The response does not recommend Tulum itself or its direct vicinity
+        level: expected
+        dimension: accuracy
+
+  - id: P2
+    query_text: "I hate heat, love architecture and wine, beaches bore me. Where in Europe in August?"
+    intent: Personalized
+    domain: Open-Ended
+    query_attrs:
+      geographic_specificity: Continent
+      constraint_count: Multi
+      trip_length: Week
+      personalization: Stated preferences
+    assertions:
+      - id: P2-A1
+        text: The response recommends a destination that avoids extreme summer heat (not Mediterranean coastal cities in August)
+        level: critical
+        dimension: accuracy
+      - id: P2-A2
+        text: The response addresses both the architecture and wine criteria in its recommendation
+        level: critical
+        dimension: accuracy
+      - id: P2-A3
+        text: The response names at least one specific city or region
+        level: expected
+        dimension: specificity
+      - id: P2-A4
+        text: The response does not primarily recommend beach destinations
+        level: expected
+        dimension: accuracy
+
+  - id: P3
+    query_text: "Solo female traveler, halal food is important, $1500 total budget from NYC, 7 days. Where?"
+    intent: Personalized
+    domain: Open-Ended
+    query_attrs:
+      geographic_specificity: Continent
+      constraint_count: Multi
+      trip_length: Week
+      personalization: Persona context
+    assertions:
+      - id: P3-A1
+        text: The response addresses the halal food requirement explicitly
+        level: critical
+        dimension: accuracy
+      - id: P3-A2
+        text: The recommended destination is reachable for $1500 total from NYC including flights
+        level: critical
+        dimension: accuracy
+      - id: P3-A3
+        text: The response addresses solo female safety considerations
+        level: expected
+        dimension: accuracy
+      - id: P3-A4
+        text: The response names a specific city or country rather than just a region
+        level: expected
+        dimension: specificity
+
+  - id: P4
+    query_text: "I've been to 40+ countries, done Southeast Asia 4 times. What can still actually surprise me?"
+    intent: Personalized
+    domain: Open-Ended
+    query_attrs:
+      geographic_specificity: Continent
+      constraint_count: None
+      trip_length: Week
+      personalization: Stated preferences
+    assertions:
+      - id: P4-A1
+        text: The response recommends somewhere genuinely off the beaten path — not Thailand, Vietnam, Bali, or Japan
+        level: critical
+        dimension: accuracy
+      - id: P4-A2
+        text: The response explains why the destination would surprise an experienced traveler
+        level: critical
+        dimension: accuracy
+      - id: P4-A3
+        text: The response names a specific country or region
+        level: expected
+        dimension: specificity
+      - id: P4-A4
+        text: The response does not simply list 5 destinations without a clear recommendation
+        level: expected
+        dimension: actionability
+
+  # ── LIVE DATA ─────────────────────────────────────────────────────────────
+
+  - id: L1
+    query_text: "Cheapest month to fly from LA to Bali next year?"
+    intent: Live Data
+    domain: Single
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: None
+      trip_length: Week
+      personalization: Cold start
+    assertions:
+      - id: L1-A1
+        text: The response names specific months as cheapest (not just "off-season" generically)
+        level: critical
+        dimension: specificity
+      - id: L1-A2
+        text: The response mentions that the cheapest months may correspond with Bali's rainy season and flags this trade-off
+        level: critical
+        dimension: accuracy
+      - id: L1-A3
+        text: The response provides an approximate price range or average fare for the cheap months
+        level: expected
+        dimension: specificity
+      - id: L1-A4
+        text: The response recommends checking fares again closer to the travel date or using fare alerts
+        level: expected
+        dimension: actionability
+
+  - id: L2
+    query_text: "Should I book Austin to Miami flights now or wait? Flying in 3 weeks"
+    intent: Live Data
+    domain: Single
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Single
+      trip_length: Weekend
+      personalization: Cold start
+    assertions:
+      - id: L2-A1
+        text: The response gives a concrete recommendation (book now vs. wait) rather than hedging with "it depends"
+        level: critical
+        dimension: actionability
+      - id: L2-A2
+        text: The response explains the reasoning behind the recommendation (3-week window is typically past the optimal booking point)
+        level: critical
+        dimension: accuracy
+      - id: L2-A3
+        text: The response mentions Tuesday/Wednesday departures or midweek flights as typically cheaper
+        level: expected
+        dimension: specificity
+      - id: L2-A4
+        text: The response suggests a price range for the Austin–Miami route
+        level: expected
+        dimension: specificity
+
+  - id: L3
+    query_text: "Are there good hotel deals in Cancún right now for next month?"
+    intent: Live Data
+    domain: Single
+    query_attrs:
+      geographic_specificity: City
+      constraint_count: Single
+      trip_length: Week
+      personalization: Cold start
+    assertions:
+      - id: L3-A1
+        text: The response explains that next month's pricing in Cancún depends on the season and names the season
+        level: critical
+        dimension: accuracy
+      - id: L3-A2
+        text: The response names at least one hotel or hotel zone in Cancún
+        level: expected
+        dimension: specificity
+      - id: L3-A3
+        text: The response mentions the Hotel Zone (Zona Hotelera) vs downtown as a relevant distinction for pricing
+        level: expected
+        dimension: specificity
+      - id: L3-A4
+        text: The response recommends a booking platform or strategy to find deals
+        level: expected
+        dimension: actionability
+
+  # ── EDGE CASES ────────────────────────────────────────────────────────────
+
+  - id: E1
+    query_text: "I want to visit Bhutan but my total budget is $2000 including flights from NYC"
+    intent: Edge Cases
+    domain: With-Budget
+    query_attrs:
+      geographic_specificity: Country
+      constraint_count: Multi
+      trip_length: Week
+      personalization: Cold start
+    assertions:
+      - id: E1-A1
+        text: The response honestly states that $2000 total is insufficient for Bhutan due to the mandatory $200+/day Sustainable Development Fee
+        level: critical
+        dimension: accuracy
+      - id: E1-A2
+        text: The response does not tell the user it is possible to visit Bhutan on $2000 total from NYC
+        level: critical
+        dimension: accuracy
+      - id: E1-A3
+        text: The response offers alternative destinations that are feasible on $2000 total from NYC
+        level: expected
+        dimension: actionability
+      - id: E1-A4
+        text: The response explains what the Bhutan government's tourism fee structure is and why it makes budget travel impossible
+        level: expected
+        dimension: accuracy
+
+  - id: E2
+    query_text: "I have a 14-hour layover at JFK. What should I do that's actually worth leaving the airport for?"
+    intent: Edge Cases
+    domain: Single
+    query_attrs:
+      geographic_specificity: Venue
+      constraint_count: Single
+      trip_length: Day
+      personalization: Cold start
+    assertions:
+      - id: E2-A1
+        text: The response confirms that 14 hours is sufficient to leave JFK and return in time
+        level: critical
+        dimension: accuracy
+      - id: E2-A2
+        text: The response provides transport instructions from JFK to Manhattan (AirTrain + subway or taxi)
+        level: critical
+        dimension: actionability
+      - id: E2-A3
+        text: The response names at least 2 specific things to do in Manhattan during the layover
+        level: expected
+        dimension: specificity
+      - id: E2-A4
+        text: The response includes a timing breakdown showing the plan is feasible within 14 hours
+        level: expected
+        dimension: actionability
+
+  - id: E3
+    query_text: "I'm on the Amalfi Coast and need to be in Rome by 7pm tomorrow for a flight. What's the plan?"
+    intent: Edge Cases
+    domain: Multi-Step
+    query_attrs:
+      geographic_specificity: Country
+      constraint_count: Multi
+      trip_length: Day
+      personalization: Cold start
+    assertions:
+      - id: E3-A1
+        text: The response recommends the ferry to Naples then high-speed train to Rome as the primary option
+        level: critical
+        dimension: accuracy
+      - id: E3-A2
+        text: The response warns that driving the Amalfi Coast is slow and not recommended as the primary plan for a time-critical departure
+        level: critical
+        dimension: accuracy
+      - id: E3-A3
+        text: The response gives specific departure times or a morning departure window to safely make a 7pm flight from Rome
+        level: expected
+        dimension: actionability
+      - id: E3-A4
+        text: The response mentions which Rome airport (FCO/CIA) and how long the transfer takes from Roma Termini
+        level: expected
+        dimension: specificity
