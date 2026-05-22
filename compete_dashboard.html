@@ -22,9 +22,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
 
-  /* Layout */
   .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
-  header { margin-bottom: 36px; }
+  header { margin-bottom: 36px; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
   header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
   header .subtitle { color: var(--muted); margin-top: 4px; font-size: 13px; }
   .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
@@ -33,6 +32,21 @@
   .tag-tie { background: rgba(167,139,250,.15); color: var(--tie); }
   .tag-match { background: rgba(34,197,94,.12); color: var(--green); }
   .tag-mismatch { background: rgba(239,68,68,.12); color: var(--red); }
+
+  /* Run Eval form */
+  .run-form { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 32px; }
+  .run-form h2 { font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+  .run-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .run-row input[type=text] { flex: 1; min-width: 200px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-size: 14px; outline: none; }
+  .run-row input[type=text]:focus { border-color: var(--mindtrip); }
+  .run-row select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; color: var(--text); font-size: 14px; outline: none; cursor: pointer; }
+  .run-row button { background: var(--mindtrip); color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .run-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #run-status { margin-top: 10px; font-size: 13px; color: var(--muted); min-height: 20px; }
+  #run-status.ok { color: var(--green); }
+  #run-status.err { color: var(--red); }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--mindtrip); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   /* Summary cards */
   .cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 32px; }
@@ -49,10 +63,10 @@
   .scorebar-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 32px; }
   .scorebar-wrap h2 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
   .scorebar { display: flex; height: 36px; border-radius: 8px; overflow: hidden; }
-  .scorebar-mindtrip { background: var(--mindtrip); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff; }
-  .scorebar-tie { background: var(--tie); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff; }
-  .scorebar-wanderboat { background: var(--wanderboat); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff; }
-  .scorebar-legend { display:flex; gap:20px; margin-top:12px; font-size:12px; color:var(--muted); }
+  .scorebar-mindtrip { background: var(--mindtrip); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff; transition: width .4s; }
+  .scorebar-tie { background: var(--tie); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff; transition: width .4s; }
+  .scorebar-wanderboat { background: var(--wanderboat); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#fff; transition: width .4s; }
+  .scorebar-legend { display:flex; gap:20px; margin-top:12px; font-size:12px; color:var(--muted); flex-wrap: wrap; }
   .scorebar-legend span { display:flex; align-items:center; gap:6px; }
   .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
 
@@ -64,13 +78,8 @@
   .bucket-row { display:flex; align-items:center; gap:8px; font-size:12px; }
   .bucket-row .name { width: 80px; color: var(--muted); }
   .bucket-bar-outer { flex:1; background:var(--surface2); border-radius:4px; height:8px; }
-  .bucket-bar-inner { height:8px; border-radius:4px; }
+  .bucket-bar-inner { height:8px; border-radius:4px; transition: width .4s; }
   .bucket-row .count { width:16px; text-align:right; font-weight:600; font-size:11px; }
-
-  /* Thesis */
-  .thesis { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 32px; border-left: 3px solid var(--mindtrip); }
-  .thesis h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
-  .thesis p { font-size: 14px; color: var(--text); }
 
   /* Table */
   .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
@@ -82,11 +91,6 @@
   td { padding: 14px 16px; vertical-align: top; }
   td.id { font-weight: 700; font-size: 13px; color: var(--muted); width: 48px; }
   td.prompt { font-size: 13px; color: var(--text); max-width: 240px; }
-  td.bucket-cell { width: 110px; }
-  td.difficulty-cell { width: 80px; font-size: 12px; color: var(--muted); }
-  td.expected-cell { width: 110px; }
-  td.llm-cell { width: 110px; }
-  td.match-cell { width: 80px; }
 
   /* Score bar mini */
   .mini-bars { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
@@ -96,26 +100,25 @@
   .mini-inner { height: 6px; border-radius: 3px; }
   .mini-val { color: var(--muted); font-size: 10px; width: 28px; text-align: right; }
 
-  /* Rationale drawer */
-  .rationale-row { display: none; }
-  .rationale-row td { padding: 0 16px 16px 16px; }
-  .rationale-box { background: var(--surface2); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--border); }
-  .rationale-box .rat-head { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; font-weight: 600; }
-  .rationale-box .rat-body { font-size: 12px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
-  .rationale-box .expected-note { margin-top: 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; }
+  /* Detail drawer */
+  .detail-row { display: none; }
+  .detail-row td { padding: 0 16px 16px 16px; }
+  .detail-box { background: var(--surface2); border-radius: 8px; padding: 14px 16px; border-left: 3px solid var(--border); }
+  .detail-box .det-head { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; font-weight: 600; }
+  .detail-box .det-body { font-size: 12px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+  .detail-box .det-footer { margin-top: 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 8px; }
+  .response-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+  .response-col h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .response-col .resp-text { font-size: 12px; color: var(--text); line-height: 1.6; white-space: pre-wrap; max-height: 280px; overflow-y: auto; background: var(--bg); border-radius: 6px; padding: 10px 12px; border: 1px solid var(--border); }
+  .response-col .resp-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
-  /* Weighted scores cols */
-  .score-pair { display: flex; flex-direction: column; gap: 2px; }
-  .score-pair .mt { font-size: 12px; color: var(--mindtrip); font-weight: 600; }
-  .score-pair .wb { font-size: 12px; color: var(--wanderboat); font-weight: 600; }
-  .score-pair .lbl { font-size: 10px; color: var(--muted); }
-
-  /* Expected vs actual divergence chip */
-  .diverge { font-size: 10px; color: var(--yellow); display: block; margin-top: 4px; }
+  .empty-state { text-align: center; padding: 48px 16px; color: var(--muted); }
+  .empty-state strong { display: block; font-size: 16px; color: var(--text); margin-bottom: 8px; }
 
   @media (max-width: 900px) {
     .cards { grid-template-columns: repeat(2,1fr); }
     .buckets { grid-template-columns: repeat(2,1fr); }
+    .response-cols { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -123,31 +126,52 @@
 <div class="container">
 
   <header>
-    <h1>Compete Eval — Mindtrip vs Wanderboat</h1>
-    <div class="subtitle">12 prompts · 5 capability buckets · LLM-as-judge via autoevals Battle scorer · GPT-4o</div>
+    <div>
+      <h1>Compete Eval — Mindtrip vs Wanderboat</h1>
+      <div class="subtitle" id="subtitle">Loading results...</div>
+    </div>
+    <a href="/login" style="font-size:12px;color:var(--muted);text-decoration:none;padding-top:4px">⚙ Login setup</a>
   </header>
+
+  <!-- Run Eval form -->
+  <div class="run-form">
+    <h2>Run New Eval</h2>
+    <div class="run-row">
+      <input type="text" id="promptInput" placeholder="Enter a travel prompt…" />
+      <select id="bucketSelect">
+        <option value="">— bucket (optional) —</option>
+        <option value="transactional">Transactional</option>
+        <option value="itinerary">Itinerary</option>
+        <option value="personalized">Personalized</option>
+        <option value="live_data">Live Data</option>
+        <option value="edge_case">Edge Case</option>
+      </select>
+      <button id="runBtn" onclick="runEval()">Run Eval</button>
+    </div>
+    <div id="run-status"></div>
+  </div>
 
   <!-- Summary Cards -->
   <div class="cards">
     <div class="card overall">
       <div class="label">Battle Score</div>
-      <div class="value">58.3%</div>
-      <div class="sub">Mindtrip advantage (7/12 wins)</div>
+      <div class="value" id="stat-pct">—</div>
+      <div class="sub" id="stat-overall">Loading…</div>
     </div>
     <div class="card mindtrip">
       <div class="label">Mindtrip Wins</div>
-      <div class="value">7</div>
-      <div class="sub">T1, T2, T3, I1, I3, L1, E1</div>
+      <div class="value" id="stat-mt">—</div>
+      <div class="sub" id="stat-mt-sub"></div>
     </div>
     <div class="card wanderboat">
       <div class="label">Wanderboat Wins</div>
-      <div class="value">3</div>
-      <div class="sub">P1, P2, L2</div>
+      <div class="value" id="stat-wb">—</div>
+      <div class="sub" id="stat-wb-sub"></div>
     </div>
     <div class="card tie">
       <div class="label">Ties</div>
-      <div class="value">2</div>
-      <div class="sub">I2, E2</div>
+      <div class="value" id="stat-tie">—</div>
+      <div class="sub" id="stat-tie-sub"></div>
     </div>
   </div>
 
@@ -155,141 +179,32 @@
   <div class="scorebar-wrap">
     <h2>Overall Distribution</h2>
     <div class="scorebar">
-      <div class="scorebar-mindtrip" style="width:58.3%">Mindtrip 58.3%</div>
-      <div class="scorebar-wanderboat" style="width:25%">WB 25%</div>
-      <div class="scorebar-tie" style="width:16.7%">Tie</div>
+      <div class="scorebar-mindtrip" id="bar-mt" style="width:0%"></div>
+      <div class="scorebar-wanderboat" id="bar-wb" style="width:0%"></div>
+      <div class="scorebar-tie" id="bar-tie" style="width:0%"></div>
     </div>
     <div class="scorebar-legend">
-      <span><i class="dot" style="background:var(--mindtrip)"></i> Mindtrip wins (7)</span>
-      <span><i class="dot" style="background:var(--wanderboat)"></i> Wanderboat wins (3)</span>
-      <span><i class="dot" style="background:var(--tie)"></i> Ties (2)</span>
-      <span style="margin-left:auto">Expected by rubric: Mindtrip 5 · Wanderboat 4 · Tie 3 (54.2%)</span>
+      <span><i class="dot" style="background:var(--mindtrip)"></i> <span id="legend-mt">Mindtrip</span></span>
+      <span><i class="dot" style="background:var(--wanderboat)"></i> <span id="legend-wb">Wanderboat</span></span>
+      <span><i class="dot" style="background:var(--tie)"></i> <span id="legend-tie">Ties</span></span>
     </div>
   </div>
 
   <!-- Bucket breakdown -->
-  <div class="buckets">
-    <div class="bucket">
-      <h3>Transactional</h3>
-      <div class="bucket-bars">
-        <div class="bucket-row">
-          <span class="name" style="color:var(--mindtrip)">Mindtrip</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:100%;background:var(--mindtrip)"></div></div>
-          <span class="count" style="color:var(--mindtrip)">3</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--wanderboat)">Wanderboat</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:0%;background:var(--wanderboat)"></div></div>
-          <span class="count" style="color:var(--wanderboat)">0</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--tie)">Tie</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:0%;background:var(--tie)"></div></div>
-          <span class="count" style="color:var(--tie)">0</span>
-        </div>
-      </div>
-    </div>
-    <div class="bucket">
-      <h3>Itinerary</h3>
-      <div class="bucket-bars">
-        <div class="bucket-row">
-          <span class="name" style="color:var(--mindtrip)">Mindtrip</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:66.7%;background:var(--mindtrip)"></div></div>
-          <span class="count" style="color:var(--mindtrip)">2</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--wanderboat)">Wanderboat</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:0%;background:var(--wanderboat)"></div></div>
-          <span class="count" style="color:var(--wanderboat)">0</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--tie)">Tie</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:33.3%;background:var(--tie)"></div></div>
-          <span class="count" style="color:var(--tie)">1</span>
-        </div>
-      </div>
-    </div>
-    <div class="bucket">
-      <h3>Personalized</h3>
-      <div class="bucket-bars">
-        <div class="bucket-row">
-          <span class="name" style="color:var(--mindtrip)">Mindtrip</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:0%;background:var(--mindtrip)"></div></div>
-          <span class="count" style="color:var(--mindtrip)">0</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--wanderboat)">Wanderboat</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:100%;background:var(--wanderboat)"></div></div>
-          <span class="count" style="color:var(--wanderboat)">2</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--tie)">Tie</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:0%;background:var(--tie)"></div></div>
-          <span class="count" style="color:var(--tie)">0</span>
-        </div>
-      </div>
-    </div>
-    <div class="bucket">
-      <h3>Live Data</h3>
-      <div class="bucket-bars">
-        <div class="bucket-row">
-          <span class="name" style="color:var(--mindtrip)">Mindtrip</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:50%;background:var(--mindtrip)"></div></div>
-          <span class="count" style="color:var(--mindtrip)">1</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--wanderboat)">Wanderboat</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:50%;background:var(--wanderboat)"></div></div>
-          <span class="count" style="color:var(--wanderboat)">1</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--tie)">Tie</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:0%;background:var(--tie)"></div></div>
-          <span class="count" style="color:var(--tie)">0</span>
-        </div>
-      </div>
-    </div>
-    <div class="bucket">
-      <h3>Edge Cases</h3>
-      <div class="bucket-bars">
-        <div class="bucket-row">
-          <span class="name" style="color:var(--mindtrip)">Mindtrip</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:50%;background:var(--mindtrip)"></div></div>
-          <span class="count" style="color:var(--mindtrip)">1</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--wanderboat)">Wanderboat</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:0%;background:var(--wanderboat)"></div></div>
-          <span class="count" style="color:var(--wanderboat)">0</span>
-        </div>
-        <div class="bucket-row">
-          <span class="name" style="color:var(--tie)">Tie</span>
-          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:50%;background:var(--tie)"></div></div>
-          <span class="count" style="color:var(--tie)">1</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Thesis -->
-  <div class="thesis">
-    <h2>Key Finding</h2>
-    <p><strong style="color:var(--mindtrip)">Mindtrip</strong> dominates transactional and structured queries — flights, hotels, layovers, itineraries with budgets. The LLM judge rewarded actionability and specificity (flight numbers, prices, dates) heavily. <strong style="color:var(--wanderboat)">Wanderboat</strong> wins on personalized/conversational queries where insight and reasoning matter more than data density. The judge also penalized Mindtrip's unverifiable numeric specifics on live-data queries.</p>
-  </div>
+  <div class="buckets" id="buckets-wrap"></div>
 
   <!-- Per-prompt table -->
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>ID</th>
+          <th>#</th>
           <th>Prompt</th>
           <th>Bucket</th>
-          <th>Difficulty</th>
-          <th>Expected</th>
-          <th>LLM Verdict</th>
-          <th>Weighted Scores</th>
-          <th>Match</th>
+          <th>Verdict</th>
+          <th>Scores</th>
+          <th>Duration</th>
+          <th>Date</th>
         </tr>
       </thead>
       <tbody id="results-body"></tbody>
@@ -299,213 +214,307 @@
 </div>
 
 <script>
-const RESULTS = [
-  {
-    id: "T1", bucket: "transactional", difficulty: "easy",
-    prompt: "Find me the cheapest flights from Seattle to Chicago in the next month",
-    expected: "mindtrip", verdict: "mindtrip",
-    mt_score: 4.8, wb_score: 2.9, diff: 1.9,
-    axes: {
-      actionability: [5, 2], specificity: [5, 3], personalization: [5, 3], trustworthiness: [4, 4]
-    },
-    rationale: "Mindtrip scores 4.8 vs Wanderboat 2.9 (diff +1.9). Mindtrip gives specific flight numbers, dates, prices, and a booking recommendation — actionability 5, specificity 5. Wanderboat offers generic guidance and pivots to itinerary planning instead of answering the question."
-  },
-  {
-    id: "T2", bucket: "transactional", difficulty: "easy",
-    prompt: "Best hotels under $200/night in Tokyo for a solo traveler in April",
-    expected: "tie", verdict: "mindtrip",
-    mt_score: 4.05, wb_score: 3.45, diff: 0.6,
-    axes: {
-      actionability: [4, 3], specificity: [4, 3], personalization: [5, 4], trustworthiness: [3, 4]
-    },
-    rationale: "Mindtrip scores 4.05 vs Wanderboat 3.45 (diff +0.60, just over the 0.5 threshold). Expected a tie but the judge tipped Mindtrip — concrete prices and the peak-bloom warning pushed actionability and personalization above threshold. Wanderboat had a slight trustworthiness edge.",
-    diverge: "Expert predicted tie"
-  },
-  {
-    id: "T3", bucket: "transactional", difficulty: "medium",
-    prompt: "Direct flights from SFO to JFK on a Tuesday with morning departures",
-    expected: "mindtrip", verdict: "mindtrip",
-    mt_score: 4.7, wb_score: 2.65, diff: 2.05,
-    axes: {
-      actionability: [5, 2], specificity: [5, 2], personalization: [5, 3], trustworthiness: [3.5, 4]
-    },
-    rationale: "Mindtrip scores 4.7 vs Wanderboat 2.65 (diff +2.05). Mindtrip provides actionable flight numbers, exact times, prices, and cabin options. Wanderboat stays at category level — names airlines but no flight numbers, times, or prices."
-  },
-  {
-    id: "I1", bucket: "itinerary", difficulty: "medium",
-    prompt: "Plan a 5-day trip to Lisbon for a couple who likes food and architecture, budget $3000 excluding flights",
-    expected: "mindtrip", verdict: "mindtrip",
-    mt_score: 4.5, wb_score: 2.9, diff: 1.6,
-    axes: {
-      actionability: [4, 2], specificity: [5, 3], personalization: [5, 3], trustworthiness: [4, 4]
-    },
-    rationale: "Mindtrip scores 4.5 vs Wanderboat 2.9 (diff +1.6). Mindtrip delivers a day-by-day plan with named restaurants, ticket prices, and explicit budget reconciliation ($2,847 of $3,000). Wanderboat gives thematic bullets with no itinerary structure or budget usage."
-  },
-  {
-    id: "I2", bucket: "itinerary", difficulty: "hard",
-    prompt: "Build a 10-day Japan itinerary covering Tokyo, Kyoto, and Osaka mixing traditional and modern experiences",
-    expected: "wanderboat", verdict: "tie",
-    mt_score: 3.65, wb_score: 3.43, diff: 0.22,
-    axes: {
-      actionability: [3.5, 2.5], specificity: [4, 3.5], personalization: [4, 4], trustworthiness: [3, 4]
-    },
-    rationale: "Mindtrip scores 3.65 vs Wanderboat 3.43 (diff +0.22, below 0.5 threshold → tie). Judge penalized Mindtrip for Robot Restaurant (now closed) and potentially inaccurate JR Pass price. Wanderboat earns trust points for the Ghibli booking tip and Suica advice. Close enough for a tie."
-  },
-  {
-    id: "I3", bucket: "itinerary", difficulty: "medium",
-    prompt: "I have a 14-hour layover in Doha — what can I realistically do?",
-    expected: "mindtrip", verdict: "mindtrip",
-    mt_score: 4.15, wb_score: 2.65, diff: 1.5,
-    axes: {
-      actionability: [4, 2], specificity: [5, 2], personalization: [4, 3], trustworthiness: [3.5, 4]
-    },
-    rationale: "Mindtrip scores 4.15 vs Wanderboat 2.65 (diff +1.5). For layover queries time-blocked precision is critical — Mindtrip's hour-by-hour plan with transit costs and explicit 'skip' advice is highly actionable. Wanderboat has the right intuitions but doesn't structure it as a usable plan."
-  },
-  {
-    id: "P1", bucket: "personalized", difficulty: "medium",
-    prompt: "I loved my trips to Mexico City and Lisbon. Where should I go next?",
-    expected: "wanderboat", verdict: "wanderboat",
-    mt_score: 2.65, wb_score: 3.15, diff: -0.5,
-    axes: {
-      actionability: [2, 2], specificity: [2, 3], personalization: [3, 4], trustworthiness: [4, 4]
-    },
-    rationale: "Wanderboat scores 3.15 vs Mindtrip 2.65 (diff 0.5, exactly at threshold → judge ruled tie/wanderboat). Wanderboat correctly identifies the travel DNA (lived-in cities, food culture, neighborhood character) and explains each recommendation through that lens. Mindtrip lists destinations without the reasoning."
-  },
-  {
-    id: "P2", bucket: "personalized", difficulty: "hard",
-    prompt: "Beach destination in November that's not crowded, good food, under 8 hours flight from NYC",
-    expected: "wanderboat", verdict: "wanderboat",
-    mt_score: 3.25, wb_score: 4.25, diff: -1.0,
-    axes: {
-      actionability: [3, 4], specificity: [3, 5], personalization: [4, 4], trustworthiness: [3, 4]
-    },
-    rationale: "Wanderboat scores 4.25 vs Mindtrip 3.25 (diff +1.0). Wanderboat names specific restaurants (La Cevichería, Carmen, Celele), actively steers away from Tulum with reasoned alternatives (Bacalar, Holbox), and scores 5 on specificity. Mindtrip's list format felt like a query result, not advice."
-  },
-  {
-    id: "L1", bucket: "live_data", difficulty: "hard",
-    prompt: "Is it a good time to book flights to Bali for December, or should I wait?",
-    expected: "mindtrip", verdict: "mindtrip",
-    mt_score: 3.8, wb_score: 2.9, diff: 0.9,
-    axes: {
-      actionability: [4, 2], specificity: [5, 2], personalization: [3, 4], trustworthiness: [3, 4]
-    },
-    rationale: "Mindtrip scores 3.8 vs Wanderboat 2.9 (diff +0.9). Mindtrip surfaces price trends, a confidence interval, and specific avoid-dates — even if the numbers are synthetic, the format is what users want. Wanderboat defers to Google Flights. Wanderboat earns personalization and trustworthiness points for not making up NYC as the origin."
-  },
-  {
-    id: "L2", bucket: "live_data", difficulty: "easy",
-    prompt: "Weather in Reykjavik next week and packing recommendations",
-    expected: "tie", verdict: "wanderboat",
-    mt_score: 2.25, wb_score: 2.4, diff: -0.15,
-    axes: {
-      actionability: [2, 2], specificity: [4, 3], personalization: [1, 1], trustworthiness: [2, 4]
-    },
-    rationale: "Wanderboat 2.4 vs Mindtrip 2.25 (diff 0.15, below threshold → tie in spirit). The judge penalized Mindtrip's precise numeric claims (exact wind speeds, precipitation %) as likely hallucination — trustworthiness 2 vs 4. Both lack personalization (no user constraints given). Effectively a tie.",
-    diverge: "Expert predicted tie; judge technically gave Wanderboat but diff below threshold"
-  },
-  {
-    id: "E1", bucket: "edge_case", difficulty: "hard",
-    prompt: "Find me a flight that lets me sleep in my own bed both nights for a meeting in Denver from Seattle",
-    expected: "tie", verdict: "mindtrip",
-    mt_score: 4.8, wb_score: 3.15, diff: 1.65,
-    axes: {
-      actionability: [5, 2], specificity: [5, 3], personalization: [5, 4], trustworthiness: [4, 4]
-    },
-    rationale: "Mindtrip scores 4.8 vs Wanderboat 3.15 (diff +1.65). Expert predicted a tie citing Wanderboat's A-Line tip, but the judge strongly favored Mindtrip's same-day round-trip flight listings with exact numbers and prices. The booking specificity gap was too large to call a tie.",
-    diverge: "Expert predicted tie; judge gave Mindtrip with strong margin"
-  },
-  {
-    id: "E2", bucket: "edge_case", difficulty: "hard",
-    prompt: "I have 48 hours, $500, leaving from Boston — surprise me",
-    expected: "wanderboat", verdict: "tie",
-    mt_score: 4.0, wb_score: 3.85, diff: 0.15,
-    axes: {
-      actionability: [4, 3.5], specificity: [4, 4], personalization: [4, 4], trustworthiness: [4, 4]
-    },
-    rationale: "Mindtrip 4.0 vs Wanderboat 3.85 (diff +0.15, below threshold → tie). Wanderboat's single-city pick with conviction was the intended winner, but the judge noted Mindtrip's three-option budget breakdowns were also strong. The 'surprise me' intent wasn't penalized enough for Wanderboat to win outright."
-  }
-];
+let _evals = [];
+
+// ── Utilities ─────────────────────────────────────────────────────────────
 
 function winnerTag(v) {
-  if (v === "mindtrip") return `<span class="tag tag-mindtrip">Mindtrip</span>`;
-  if (v === "wanderboat") return `<span class="tag tag-wanderboat">Wanderboat</span>`;
-  return `<span class="tag tag-tie">Tie</span>`;
+  if (v === 'mindtrip') return `<span class="tag tag-mindtrip">Mindtrip</span>`;
+  if (v === 'wanderboat') return `<span class="tag tag-wanderboat">Wanderboat</span>`;
+  if (v === 'tie') return `<span class="tag tag-tie">Tie</span>`;
+  return `<span class="tag" style="background:rgba(100,100,200,.1);color:var(--muted)">—</span>`;
 }
 
-function difficultyColor(d) {
-  return d === "easy" ? "#22c55e" : d === "medium" ? "#eab308" : "#ef4444";
+function fmtDur(ms) {
+  if (!ms) return '—';
+  return ms >= 60000 ? `${(ms/60000).toFixed(1)}m` : `${(ms/1000).toFixed(1)}s`;
 }
 
-function mini(label, mt, wb) {
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function scoreBar(mt, wb) {
+  if (mt == null && wb == null) return '<span style="color:var(--muted);font-size:11px">no scores</span>';
+  const mtv = mt != null ? mt.toFixed(2) : '—';
+  const wbv = wb != null ? wb.toFixed(2) : '—';
+  const diff = (mt != null && wb != null) ? (mt - wb) : null;
+  const sign = diff != null && diff > 0 ? '+' : '';
+  return `<span style="color:var(--mindtrip);font-weight:700">${mtv}</span>
+    <span style="color:var(--muted)"> vs </span>
+    <span style="color:var(--wanderboat);font-weight:700">${wbv}</span>
+    ${diff != null ? `<span style="color:var(--muted);font-size:11px;margin-left:4px">(Δ ${sign}${diff.toFixed(2)})</span>` : ''}`;
+}
+
+function parseJudgeData(row) {
+  // reasoning is stored as JSON with axes breakdown; fall back to flat values
+  try {
+    const d = JSON.parse(row.judge_reasoning);
+    if (d && d.axes) return d;
+  } catch {}
+  return null;
+}
+
+function miniAxis(label, mt, wb) {
   const max = 5;
+  const mtp = mt != null ? (mt/max*100).toFixed(0) : 0;
+  const wbp = wb != null ? (wb/max*100).toFixed(0) : 0;
   return `<div class="mini-row">
     <span class="mini-label">${label}</span>
     <div style="flex:1;display:flex;flex-direction:column;gap:2px">
-      <div class="mini-outer"><div class="mini-inner" style="width:${(mt/max)*100}%;background:var(--mindtrip)"></div></div>
-      <div class="mini-outer"><div class="mini-inner" style="width:${(wb/max)*100}%;background:var(--wanderboat)"></div></div>
+      <div class="mini-outer"><div class="mini-inner" style="width:${mtp}%;background:var(--mindtrip)"></div></div>
+      <div class="mini-outer"><div class="mini-inner" style="width:${wbp}%;background:var(--wanderboat)"></div></div>
     </div>
-    <span class="mini-val" style="color:var(--mindtrip)">${mt}</span>
-    <span class="mini-val" style="color:var(--wanderboat)">${wb}</span>
+    <span class="mini-val" style="color:var(--mindtrip)">${mt ?? '—'}</span>
+    <span class="mini-val" style="color:var(--wanderboat)">${wb ?? '—'}</span>
   </div>`;
 }
 
-const tbody = document.getElementById("results-body");
+// ── Render ────────────────────────────────────────────────────────────────
 
-RESULTS.forEach((r, i) => {
-  const matched = (r.expected === r.verdict) ||
-    (r.expected === "tie" && r.diff < 0.5) ||
-    (r.verdict === "tie" && r.expected === "wanderboat" && r.diff < 0);
-  const matchTag = matched
-    ? `<span class="tag tag-match">Match</span>`
-    : `<span class="tag tag-mismatch">Diverge</span>`;
+function renderSummary(data) {
+  const total = data.length;
+  const mt = data.filter(e => e.winner === 'mindtrip').length;
+  const wb = data.filter(e => e.winner === 'wanderboat').length;
+  const tie = data.filter(e => e.winner === 'tie').length;
+  const pct = total > 0 ? ((mt / total) * 100).toFixed(1) : '0';
 
-  const divergeNote = r.diverge ? `<span class="diverge">&#9888; ${r.diverge}</span>` : "";
+  document.getElementById('subtitle').textContent =
+    `${total} eval${total !== 1 ? 's' : ''} · LLM-as-judge via autoevals Battle`;
 
-  const mainRow = document.createElement("tr");
-  mainRow.setAttribute("data-idx", i);
-  mainRow.innerHTML = `
-    <td class="id">${r.id}</td>
-    <td class="prompt">${r.prompt}</td>
-    <td class="bucket-cell"><span class="tag" style="background:rgba(100,100,200,.1);color:#a0aec0">${r.bucket}</span></td>
-    <td class="difficulty-cell"><span style="color:${difficultyColor(r.difficulty)}">${r.difficulty}</span></td>
-    <td class="expected-cell">${winnerTag(r.expected)}</td>
-    <td class="llm-cell">${winnerTag(r.verdict)}${divergeNote}</td>
-    <td>
-      <div class="mini-bars">
-        ${mini("Action", r.axes.actionability[0], r.axes.actionability[1])}
-        ${mini("Specific", r.axes.specificity[0], r.axes.specificity[1])}
-        ${mini("Personal", r.axes.personalization[0], r.axes.personalization[1])}
-        ${mini("Trust", r.axes.trustworthiness[0], r.axes.trustworthiness[1])}
+  document.getElementById('stat-pct').textContent = `${pct}%`;
+  document.getElementById('stat-overall').textContent = `Mindtrip advantage (${mt}/${total})`;
+  document.getElementById('stat-mt').textContent = mt;
+  document.getElementById('stat-wb').textContent = wb;
+  document.getElementById('stat-tie').textContent = tie;
+
+  // Score bar
+  const mtPct = total > 0 ? (mt / total * 100).toFixed(1) : 0;
+  const wbPct = total > 0 ? (wb / total * 100).toFixed(1) : 0;
+  const tiePct = total > 0 ? (tie / total * 100).toFixed(1) : 0;
+  document.getElementById('bar-mt').style.width = mtPct + '%';
+  document.getElementById('bar-mt').textContent = mt > 0 ? `Mindtrip ${mtPct}%` : '';
+  document.getElementById('bar-wb').style.width = wbPct + '%';
+  document.getElementById('bar-wb').textContent = wb > 0 ? `WB ${wbPct}%` : '';
+  document.getElementById('bar-tie').style.width = tiePct + '%';
+  document.getElementById('bar-tie').textContent = tie > 0 ? `Tie ${tiePct}%` : '';
+  document.getElementById('legend-mt').textContent = `Mindtrip wins (${mt})`;
+  document.getElementById('legend-wb').textContent = `Wanderboat wins (${wb})`;
+  document.getElementById('legend-tie').textContent = `Ties (${tie})`;
+
+  // Bucket breakdown
+  const BUCKETS = ['transactional', 'itinerary', 'personalized', 'live_data', 'edge_case'];
+  const LABELS  = ['Transactional', 'Itinerary', 'Personalized', 'Live Data', 'Edge Cases'];
+  const bucketsEl = document.getElementById('buckets-wrap');
+  bucketsEl.innerHTML = BUCKETS.map((b, i) => {
+    const rows = data.filter(e => e.bucket === b);
+    const bmt = rows.filter(e => e.winner === 'mindtrip').length;
+    const bwb = rows.filter(e => e.winner === 'wanderboat').length;
+    const btie = rows.filter(e => e.winner === 'tie').length;
+    const bmax = Math.max(bmt, bwb, btie, 1);
+    return `<div class="bucket">
+      <h3>${LABELS[i]}${rows.length > 0 ? ` <span style="color:var(--muted);font-weight:400">(${rows.length})</span>` : ''}</h3>
+      <div class="bucket-bars">
+        <div class="bucket-row">
+          <span class="name" style="color:var(--mindtrip)">Mindtrip</span>
+          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:${bmt/bmax*100}%;background:var(--mindtrip)"></div></div>
+          <span class="count" style="color:var(--mindtrip)">${bmt}</span>
+        </div>
+        <div class="bucket-row">
+          <span class="name" style="color:var(--wanderboat)">Wanderboat</span>
+          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:${bwb/bmax*100}%;background:var(--wanderboat)"></div></div>
+          <span class="count" style="color:var(--wanderboat)">${bwb}</span>
+        </div>
+        <div class="bucket-row">
+          <span class="name" style="color:var(--tie)">Tie</span>
+          <div class="bucket-bar-outer"><div class="bucket-bar-inner" style="width:${btie/bmax*100}%;background:var(--tie)"></div></div>
+          <span class="count" style="color:var(--tie)">${btie}</span>
+        </div>
       </div>
-      <div style="margin-top:6px;font-size:11px;color:var(--muted)">
-        <span style="color:var(--mindtrip);font-weight:700">${r.mt_score.toFixed(2)}</span> vs
-        <span style="color:var(--wanderboat);font-weight:700">${r.wb_score.toFixed(2)}</span>
-        <span style="margin-left:4px">(Δ ${r.diff > 0 ? "+" : ""}${r.diff.toFixed(2)})</span>
+    </div>`;
+  }).join('');
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('results-body');
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7">
+      <div class="empty-state">
+        <strong>No evals yet</strong>
+        Enter a prompt above and click Run Eval to get started.
       </div>
-    </td>
-    <td class="match-cell">${matchTag}</td>
-  `;
+    </td></tr>`;
+    return;
+  }
 
-  const detailRow = document.createElement("tr");
-  detailRow.className = "rationale-row";
-  detailRow.setAttribute("data-idx", i);
-  detailRow.innerHTML = `
-    <td colspan="8">
-      <div class="rationale-box">
-        <div class="rat-head">Judge Rationale</div>
-        <div class="rat-body">${r.rationale}</div>
-        <div class="expected-note">MT = <span style="color:var(--mindtrip)">Mindtrip</span> &nbsp;|&nbsp; WB = <span style="color:var(--wanderboat)">Wanderboat</span> &nbsp;|&nbsp; Axes weighted: Actionability 0.30 · Specificity 0.25 · Personalization 0.25 · Trustworthiness 0.20</div>
-      </div>
-    </td>
-  `;
+  tbody.innerHTML = '';
+  data.forEach((row, i) => {
+    const mtDur = fmtDur(row.mindtrip_duration_ms);
+    const wbDur = fmtDur(row.wanderboat_duration_ms);
 
-  tbody.appendChild(mainRow);
-  tbody.appendChild(detailRow);
+    const mainTr = document.createElement('tr');
+    mainTr.innerHTML = `
+      <td class="id">#${row.id}</td>
+      <td class="prompt">${escHtml(row.prompt)}</td>
+      <td><span class="tag" style="background:rgba(100,100,200,.1);color:var(--muted)">${row.bucket || '—'}</span></td>
+      <td>${winnerTag(row.winner)}</td>
+      <td style="white-space:nowrap">${scoreBar(row.score_mindtrip, row.score_wanderboat)}</td>
+      <td style="font-size:12px;color:var(--muted)">
+        <span style="color:var(--mindtrip)">MT ${mtDur}</span><br>
+        <span style="color:var(--wanderboat)">WB ${wbDur}</span>
+      </td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(row.created_at)}</td>
+    `;
 
-  mainRow.addEventListener("click", () => {
-    const open = detailRow.style.display === "table-row";
-    detailRow.style.display = open ? "none" : "table-row";
+    const detTr = document.createElement('tr');
+    detTr.className = 'detail-row';
+    const mtResp = row.mindtrip_response || row.mindtrip_error || '(no response)';
+    const wbResp = row.wanderboat_response || row.wanderboat_error || '(no response)';
+    const jd = parseJudgeData(row);
+    const axesHtml = jd ? `
+      <div style="margin-bottom:14px">
+        <div class="det-head" style="margin-bottom:8px">Rubric Scores (MT blue · WB orange)</div>
+        <div class="mini-bars" style="max-width:380px">
+          ${miniAxis('Actionability', jd.axes?.actionability?.mindtrip, jd.axes?.actionability?.wanderboat)}
+          ${miniAxis('Specificity',   jd.axes?.specificity?.mindtrip,   jd.axes?.specificity?.wanderboat)}
+          ${miniAxis('Personalization', jd.axes?.personalization?.mindtrip, jd.axes?.personalization?.wanderboat)}
+          ${miniAxis('Trustworthiness', jd.axes?.trustworthiness?.mindtrip, jd.axes?.trustworthiness?.wanderboat)}
+        </div>
+      </div>` : '';
+    const reasoningText = jd ? jd.summary : (row.judge_reasoning || '—');
+    detTr.innerHTML = `
+      <td colspan="7">
+        <div class="detail-box">
+          <div class="response-cols">
+            <div class="response-col">
+              <h4 style="color:var(--mindtrip)">Mindtrip</h4>
+              <div class="resp-text">${escHtml(mtResp)}</div>
+              <div class="resp-meta">Duration: ${mtDur}</div>
+            </div>
+            <div class="response-col">
+              <h4 style="color:var(--wanderboat)">Wanderboat</h4>
+              <div class="resp-text">${escHtml(wbResp)}</div>
+              <div class="resp-meta">Duration: ${wbDur}</div>
+            </div>
+          </div>
+          ${axesHtml}
+          <div class="det-head">Judge Reasoning</div>
+          <div class="det-body">${escHtml(reasoningText)}</div>
+          <div class="det-footer">Axes weighted: Actionability 0.30 · Specificity 0.25 · Personalization 0.25 · Trustworthiness 0.20</div>
+        </div>
+      </td>
+    `;
+
+    tbody.appendChild(mainTr);
+    tbody.appendChild(detTr);
+
+    mainTr.addEventListener('click', () => {
+      const open = detTr.style.display === 'table-row';
+      detTr.style.display = open ? 'none' : 'table-row';
+    });
   });
-});
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function render(data) {
+  _evals = data;
+  renderSummary(data);
+  renderTable(data);
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────
+
+async function loadEvals() {
+  try {
+    const res = await fetch('/api/evals?limit=100');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    render(data);
+  } catch (err) {
+    document.getElementById('subtitle').textContent = 'Could not reach API — open via `uvicorn scraper.streaming.ws_server:app --port 8765`';
+    render([]);
+  }
+}
+
+// ── Run new eval ──────────────────────────────────────────────────────────
+
+function setStatus(msg, cls = '') {
+  const el = document.getElementById('run-status');
+  el.innerHTML = msg;
+  el.className = cls;
+}
+
+async function runEval() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) { setStatus('Enter a prompt first.', 'err'); return; }
+  const bucket = document.getElementById('bucketSelect').value || null;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  setStatus('<span class="spinner"></span>Launching scrapers — this takes ~2 min…');
+
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, bucket }),
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let lastEvent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+
+      // SSE frames are separated by blank lines
+      const frames = buf.split('\n\n');
+      buf = frames.pop(); // keep incomplete last frame
+
+      for (const frame of frames) {
+        let event = '';
+        let data = '';
+        for (const line of frame.split('\n')) {
+          if (line.startsWith('event: ')) event = line.slice(7).trim();
+          if (line.startsWith('data: '))  data  = line.slice(6).trim();
+        }
+        if (event === 'status') {
+          try { const d = JSON.parse(data); setStatus(`<span class="spinner"></span>${d.message}`); } catch {}
+        } else if (event === 'done') {
+          setStatus('Done! Refreshing results…', 'ok');
+          await loadEvals();
+          document.getElementById('promptInput').value = '';
+        } else if (event === 'error') {
+          try { const d = JSON.parse(data); setStatus(`Error: ${d.message}`, 'err'); } catch {
+            setStatus('Unknown error', 'err');
+          }
+        }
+      }
+    }
+  } catch (err) {
+    setStatus(`Error: ${err.message}`, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+
+loadEvals();
+// Refresh every 30s in case another process is running evals
+setInterval(loadEvals, 30000);
 </script>
 </body>
 </html>

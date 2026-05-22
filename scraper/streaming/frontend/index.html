@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compete — Login Stream</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1117; color: #e2e8f0; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 24px; min-height: 100vh; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: #7c84a0; font-size: 13px; margin-bottom: 20px; }
+  .controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+  select, button { padding: 8px 16px; border-radius: 8px; border: 1px solid #2d3150; font-size: 14px; }
+  select { background: #1a1d27; color: #e2e8f0; }
+  button { background: #4f8ef7; color: #fff; border-color: #4f8ef7; cursor: pointer; font-weight: 600; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.disconnect { background: #ef4444; border-color: #ef4444; }
+  #status { font-size: 13px; color: #7c84a0; margin-bottom: 12px; min-height: 20px; }
+  #status.ok { color: #22c55e; }
+  #status.err { color: #ef4444; }
+  .canvas-wrap { position: relative; border: 1px solid #2d3150; border-radius: 12px; overflow: hidden; cursor: crosshair; background: #000; }
+  canvas { display: block; max-width: 100%; }
+  .badge { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.7); color: #22c55e; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+</style>
+</head>
+<body>
+<h1>Compete — Browser Login Stream</h1>
+<p class="subtitle">Log in to the target site through the live browser below. Session is saved automatically on detection.</p>
+
+<div class="controls">
+  <select id="siteSelect">
+    <option value="mindtrip">MindTrip</option>
+    <option value="wanderboat">Wanderboat</option>
+  </select>
+  <button id="connectBtn" onclick="connect()">Connect</button>
+  <button id="disconnectBtn" class="disconnect" onclick="disconnect()" disabled>Disconnect</button>
+</div>
+
+<div id="status">Idle — select a site and click Connect.</div>
+
+<div class="canvas-wrap" id="canvasWrap" style="display:none">
+  <canvas id="screen" width="1280" height="900"></canvas>
+  <div class="badge" id="liveBadge">● LIVE</div>
+</div>
+
+<script>
+let ws = null;
+let animFrame = null;
+const canvas = document.getElementById('screen');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+
+function setStatus(msg, cls = '') {
+  status.textContent = msg;
+  status.className = cls;
+}
+
+function connect() {
+  const site = document.getElementById('siteSelect').value;
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url = `${proto}://${location.host}/ws/login?site=${site}`;
+
+  ws = new WebSocket(url);
+  ws.binaryType = 'blob';
+
+  document.getElementById('connectBtn').disabled = true;
+  document.getElementById('disconnectBtn').disabled = false;
+  document.getElementById('canvasWrap').style.display = 'block';
+  setStatus('Connecting...');
+
+  ws.onopen = () => setStatus('Connected — browser launching...', 'ok');
+
+  ws.onmessage = (evt) => {
+    if (evt.data instanceof Blob) {
+      // Binary frame = JPEG screenshot
+      const img = new Image();
+      const url = URL.createObjectURL(evt.data);
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+      return;
+    }
+    // Text frame = JSON control message
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'status') setStatus(msg.message, 'ok');
+      else if (msg.type === 'error') setStatus(msg.message, 'err');
+      else if (msg.type === 'login_detected') {
+        setStatus(`✓ ${msg.message}`, 'ok');
+        document.getElementById('liveBadge').textContent = '✓ SESSION SAVED';
+        document.getElementById('liveBadge').style.color = '#22c55e';
+      }
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    setStatus('Disconnected.');
+    document.getElementById('connectBtn').disabled = false;
+    document.getElementById('disconnectBtn').disabled = true;
+  };
+
+  ws.onerror = () => setStatus('WebSocket error.', 'err');
+
+  // Forward mouse/keyboard to server
+  canvas.addEventListener('click', sendClick);
+  canvas.addEventListener('mousemove', sendMouseMove);
+  canvas.addEventListener('dblclick', sendDblClick);
+  canvas.addEventListener('wheel', sendScroll, { passive: true });
+  document.addEventListener('keydown', sendKeydown);
+}
+
+function disconnect() {
+  if (ws) ws.close();
+}
+
+function canvasCoords(evt) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: Math.round((evt.clientX - rect.left) * scaleX),
+    y: Math.round((evt.clientY - rect.top) * scaleY),
+  };
+}
+
+function send(obj) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
+}
+
+function sendClick(evt) { const c = canvasCoords(evt); send({ type: 'click', ...c }); }
+function sendDblClick(evt) { const c = canvasCoords(evt); send({ type: 'dblclick', ...c }); }
+function sendMouseMove(evt) { const c = canvasCoords(evt); send({ type: 'mousemove', ...c }); }
+function sendScroll(evt) { send({ type: 'scroll', dx: evt.deltaX, dy: evt.deltaY }); }
+function sendKeydown(evt) {
+  // Don't hijack browser shortcuts
+  if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+  send({ type: 'keydown', key: evt.key });
+}
+</script>
+</body>
+</html>

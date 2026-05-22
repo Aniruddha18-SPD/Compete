@@ -4,3 +4,13 @@
 *.db-wal
 backend/venv/
 frontend/node_modules/
+sessions/
+data/
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.egg-info/
+.venv/
+venv/
+tools/*.json
