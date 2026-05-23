@@ -1,3 +1,8 @@
+import sys
+if sys.platform == "win32":
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 import asyncio
 import json
 import os
@@ -44,6 +49,59 @@ async def list_runs(db=Depends(get_db)):
     )
     rows = await cur.fetchall()
     return [row_to_dict(r) for r in rows]
+
+
+_GENERIC_ASSERTIONS = [
+    {"text": "The response directly addresses the user's travel question without going off-topic", "level": "critical", "dimension": "accuracy"},
+    {"text": "The response names at least two specific places, hotels, restaurants, or activities", "level": "critical", "dimension": "specificity"},
+    {"text": "The response provides actionable next steps or a clear plan the user can follow", "level": "expected", "dimension": "actionability"},
+    {"text": "The response includes practical details such as timing, cost range, or logistics", "level": "expected", "dimension": "actionability"},
+]
+
+
+@app.post("/api/runs/live")
+async def create_live_run(body: dict, background_tasks: BackgroundTasks):
+    """
+    Launch a live eval. Returns immediately; scraping + judging run in background.
+
+    Body options:
+      { "prompt": "Best beaches in Thailand" }   ← one-shot custom prompt
+      { "query_ids": ["T1", "T2"] }              ← run specific seeded queries
+      {}                                          ← run all seeded queries
+    """
+    from capture import capture_live_run
+
+    custom_prompt: str | None = (body.get("prompt") or "").strip() or None
+    query_ids: list[str] | None = body.get("query_ids") or None
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT COUNT(*) FROM runs WHERE run_name LIKE 'Live Run%'")
+        count = (await cur.fetchone())[0]
+        run_name = f"Live Run v{count + 1}"
+        run_id = str(uuid.uuid4())
+        await db.execute(
+            "INSERT INTO runs (id, run_name, status, run_type) VALUES (?, ?, ?, ?)",
+            (run_id, run_name, "capturing", "live"),
+        )
+
+        if custom_prompt:
+            # Create a temporary query + generic assertions for this prompt
+            q_id = f"custom-{run_id[:8]}"
+            await db.execute(
+                "INSERT OR IGNORE INTO queries (id, query_text, intent, domain, query_attrs) VALUES (?, ?, ?, ?, ?)",
+                (q_id, custom_prompt, "Custom", "Single", "{}"),
+            )
+            for i, a in enumerate(_GENERIC_ASSERTIONS, 1):
+                await db.execute(
+                    "INSERT OR IGNORE INTO assertions (id, query_id, assertion_text, level, dimension) VALUES (?, ?, ?, ?, ?)",
+                    (f"{q_id}-A{i}", q_id, a["text"], a["level"], a["dimension"]),
+                )
+            query_ids = [q_id]
+
+        await db.commit()
+
+    background_tasks.add_task(capture_live_run, run_id, query_ids)
+    return {"run_id": run_id, "status": "capturing"}
 
 
 @app.post("/api/runs/mock")
@@ -227,8 +285,8 @@ async def get_query(query_id: str, db=Depends(get_db)):
 
 @app.get("/api/runs/{run_id}/findings")
 async def run_findings(run_id: str, db=Depends(get_db)):
-    from openai import OpenAI
-    oai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
+    import anthropic
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
     # Gather summary
     cur = await db.execute(
@@ -309,31 +367,80 @@ Return a JSON object with a single key "findings" whose value is the array. Exam
 {{"findings": [{{"title": "...", "winner": "mindtrip", "intent": "Transactional", "summary": "...", "evidence": "..."}}]}}"""
 
     loop = asyncio.get_event_loop()
-    def call_openai():
-        result = oai.chat.completions.create(
-            model="gpt-4o",
+    def call_claude():
+        import re
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
             max_tokens=1400,
             messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
         )
-        text = result.choices[0].message.content.strip()
+        text = msg.content[0].text.strip()
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
         parsed = json.loads(text)
-        # Handle: {"findings": [...]} or {"0": {...}, "1": {...}} or direct array
         if isinstance(parsed, list):
             return parsed
         if "findings" in parsed and isinstance(parsed["findings"], list):
             return parsed["findings"]
-        # Fallback: values of the dict if they look like finding objects
         values = list(parsed.values())
         if values and isinstance(values[0], dict) and "title" in values[0]:
             return values
-        # Single finding returned as flat object
         if "title" in parsed:
             return [parsed]
         return values
 
-    findings = await loop.run_in_executor(None, call_openai)
+    findings = await loop.run_in_executor(None, call_claude)
     return {"findings": findings, "outcomes": outcomes, "avgs": avgs}
+
+
+# ── Live progress ─────────────────────────────────────────────────────────────
+
+@app.get("/api/runs/{run_id}/progress")
+async def run_progress(run_id: str, db=Depends(get_db)):
+    """Lightweight poll endpoint — returns scraping + judging counts for live runs."""
+    cur = await db.execute("SELECT status FROM runs WHERE id = ?", (run_id,))
+    row = await cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # How many queries exist for this run
+    cur2 = await db.execute(
+        "SELECT COUNT(DISTINCT query_id) FROM responses WHERE run_id = ?", (run_id,)
+    )
+    captured_queries = (await cur2.fetchone())[0]
+
+    # Per-product capture counts
+    cur3 = await db.execute(
+        "SELECT product, COUNT(*) as cnt FROM responses WHERE run_id = ? GROUP BY product",
+        (run_id,),
+    )
+    by_product = {r["product"]: r["cnt"] for r in await cur3.fetchall()}
+
+    # Verdict count so far
+    cur4 = await db.execute(
+        "SELECT COUNT(*) FROM verdicts v "
+        "JOIN responses r ON v.response_id = r.id WHERE r.run_id = ?",
+        (run_id,),
+    )
+    verdict_count = (await cur4.fetchone())[0]
+
+    # Total assertions expected (for judging progress bar)
+    cur5 = await db.execute(
+        "SELECT COUNT(*) FROM assertions a "
+        "WHERE a.query_id IN (SELECT DISTINCT query_id FROM responses WHERE run_id = ?)",
+        (run_id,),
+    )
+    total_assertions = (await cur5.fetchone())[0]
+    # Two products × assertions
+    total_verdicts_expected = total_assertions * 2
+
+    return {
+        "status": row["status"],
+        "captured_queries": captured_queries,
+        "by_product": by_product,
+        "verdict_count": verdict_count,
+        "total_verdicts_expected": total_verdicts_expected,
+    }
 
 
 # ── Misc ──────────────────────────────────────────────────────────────────────

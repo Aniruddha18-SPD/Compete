@@ -40,3 +40,7 @@ input[type="text"] {
   padding: 6px 10px; font: inherit; font-size: 13px;
 }
 input[type="text"]::placeholder { color: var(--text-muted); }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

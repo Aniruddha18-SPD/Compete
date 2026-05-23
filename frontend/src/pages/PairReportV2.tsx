@@ -1,12 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, Run, Summary, PivotRow, PairResult } from '../api'
 
 const MT = 'var(--mindtrip)'
 const WB = 'var(--wanderboat)'
 
-const INTENTS = ['Transactional', 'Itinerary', 'Personalized', 'Live Data', 'Edge Cases']
-const DOMAINS = ['Single', 'Multi-Step', 'Comparison', 'Open-Ended', 'With-Budget']
+const INTENTS = ['transactional', 'itinerary', 'personalized', 'live_data', 'edge_case']
+const DOMAINS = ['easy', 'medium', 'hard']
 const SEVERITIES = ['All Levels', 'Critical', 'Expected', 'Aspirational']
 
 const OUTCOME_COLOR: Record<string, string> = {
@@ -95,6 +95,11 @@ export default function PairReportV2() {
 
   if (loading) return <div style={{ padding: 40, color: 'var(--muted)', fontSize: 13 }}>Loading…</div>
   if (!run || !summary) return null
+
+  // Show live progress panel while run is not complete
+  if (run.status !== 'complete') {
+    return <LiveProgressPanel run={run} onComplete={load} />
+  }
 
   const totalOutcomes = Object.values(summary.outcomes).reduce((s, v) => s + v, 0)
 
@@ -283,6 +288,144 @@ export default function PairReportV2() {
           onClose={() => setDrillPanel(null)}
         />
       )}
+    </div>
+  )
+}
+
+/* ─── Live Progress Panel ─── */
+function LiveProgressPanel({ run, onComplete }: { run: Run; onComplete: () => void }) {
+  const [progress, setProgress] = useState<{
+    status: string
+    captured_queries: number
+    by_product: Record<string, number>
+    verdict_count: number
+    total_verdicts_expected: number
+  } | null>(null)
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const p = await api.progress(run.id)
+        setProgress(p)
+        if (p.status === 'complete') {
+          if (intervalRef.current) clearInterval(intervalRef.current)
+          onComplete()
+        }
+      } catch (_) { /* ignore polling errors */ }
+    }
+    poll()
+    intervalRef.current = setInterval(poll, 3000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [run.id, onComplete])
+
+  const isCapturing = !progress || progress.status === 'capturing'
+  const isJudging = progress?.status === 'judging'
+  const verdictPct = progress && progress.total_verdicts_expected > 0
+    ? Math.round(progress.verdict_count / progress.total_verdicts_expected * 100)
+    : 0
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', minHeight: 'calc(100vh - 48px)',
+      padding: '40px 24px',
+    }}>
+      <div style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 16, padding: '40px 48px', maxWidth: 520, width: '100%',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            border: '3px solid var(--mindtrip)',
+            borderTopColor: 'transparent',
+            animation: 'spin 0.9s linear infinite',
+            flexShrink: 0,
+          }} />
+          <div>
+            <p style={{ fontWeight: 700, fontSize: 16 }}>Running Live Eval</p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{run.run_name}</p>
+          </div>
+        </div>
+
+        {/* Steps */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 32 }}>
+          <StepRow
+            done={!!progress && (progress.captured_queries > 0 || isJudging || progress.status === 'complete')}
+            active={isCapturing}
+            label="Scraping responses"
+            detail={progress
+              ? `Wanderboat: ${progress.by_product['wanderboat'] ?? 0}  ·  Mindtrip: ${progress.by_product['mindtrip'] ?? 0}`
+              : 'Starting scrapers…'}
+          />
+          <StepRow
+            done={progress?.status === 'complete'}
+            active={isJudging}
+            label="Judging with Claude Haiku"
+            detail={isJudging || progress?.status === 'complete'
+              ? `${progress?.verdict_count ?? 0} / ${progress?.total_verdicts_expected ?? '?'} assertions scored`
+              : 'Waiting for capture to finish…'}
+          />
+          <StepRow
+            done={progress?.status === 'complete'}
+            active={false}
+            label="Building report"
+            detail="Computing outcomes and pass rates"
+          />
+        </div>
+
+        {/* Verdict progress bar */}
+        {(isJudging || progress?.status === 'complete') && progress && progress.total_verdicts_expected > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--muted)' }}>Assertions judged</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--mindtrip)' }}>{verdictPct}%</span>
+            </div>
+            <div style={{ height: 6, borderRadius: 3, background: 'var(--border)' }}>
+              <div style={{
+                height: '100%', borderRadius: 3, background: 'var(--mindtrip)',
+                width: `${verdictPct}%`, transition: 'width 0.5s ease',
+              }} />
+            </div>
+          </div>
+        )}
+
+        <p style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
+          Polling every 3s · This page updates automatically when complete
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function StepRow({ done, active, label, detail }: {
+  done: boolean; active: boolean; label: string; detail: string
+}) {
+  const textColor = done ? 'var(--green)' : active ? 'var(--mindtrip)' : 'var(--muted)'
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+      <div style={{
+        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+        background: done ? 'var(--green)' : active ? 'var(--mindtrip)' : 'var(--border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, color: done || active ? '#fff' : 'var(--muted)', marginTop: 1,
+      }}>
+        {done ? '✓' : active ? (
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%',
+            border: '2px solid rgba(255,255,255,0.8)',
+            borderTopColor: 'transparent',
+            animation: 'spin 0.9s linear infinite',
+          }} />
+        ) : '·'}
+      </div>
+      <div style={{ flex: 1 }}>
+        <p style={{ fontSize: 13, fontWeight: active || done ? 600 : 400, color: textColor }}>{label}</p>
+        <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2, lineHeight: 1.4 }}>{detail}</p>
+      </div>
     </div>
   )
 }

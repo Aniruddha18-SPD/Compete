@@ -3,7 +3,15 @@ import { api } from '../api'
 
 type Query = { id: string; query_text: string; intent: string; domain: string; assertion_count: number }
 
-const BUCKETS = ['Transactional', 'Itinerary', 'Personalized', 'Live Data', 'Edge Cases']
+const BUCKETS = ['transactional', 'itinerary', 'personalized', 'live_data', 'edge_case']
+const BUCKET_LABEL: Record<string, string> = {
+  transactional: 'Transactional', itinerary: 'Itinerary',
+  personalized: 'Personalized', live_data: 'Live Data', edge_case: 'Edge Cases',
+}
+const BUCKET_COLOR: Record<string, string> = {
+  transactional: 'var(--mindtrip)', itinerary: 'var(--green)',
+  personalized: 'var(--tie)', live_data: 'var(--yellow)', edge_case: 'var(--wanderboat)',
+}
 
 export default function QueryStudio() {
   const [queries, setQueries] = useState<Query[]>([])
@@ -20,11 +28,6 @@ export default function QueryStudio() {
   })
 
   const counts = BUCKETS.reduce((acc, b) => { acc[b] = queries.filter(q => q.intent === b).length; return acc }, {} as Record<string, number>)
-
-  const BUCKET_COLOR: Record<string, string> = {
-    Transactional: 'var(--mindtrip)', Itinerary: 'var(--green)',
-    Personalized: 'var(--tie)', 'Live Data': 'var(--yellow)', 'Edge Cases': 'var(--wanderboat)',
-  }
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 24px' }}>
@@ -47,7 +50,7 @@ export default function QueryStudio() {
               border: `1px solid ${active ? c + '66' : 'var(--border)'}`,
               fontWeight: active ? 700 : 400,
             }}>
-              {b} <span style={{ fontWeight: 700, marginLeft: 3 }}>{counts[b] || 0}</span>
+              {BUCKET_LABEL[b] ?? b} <span style={{ fontWeight: 700, marginLeft: 3 }}>{counts[b] || 0}</span>
             </button>
           )
         })}
@@ -59,7 +62,7 @@ export default function QueryStudio() {
       {loading ? <p style={{ color: 'var(--muted)' }}>Loading…</p> : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
           {filtered.map((q, i) => {
-            const c = BUCKET_COLOR[q.intent] || 'var(--muted)'
+            const c = BUCKET_COLOR[q.intent] ?? 'var(--muted)'
             return (
               <div key={q.id} style={{ padding: '12px 16px', borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : undefined, display: 'grid', gridTemplateColumns: '40px 1fr auto auto auto', gap: 12, alignItems: 'center' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)' }}>{q.id}</span>

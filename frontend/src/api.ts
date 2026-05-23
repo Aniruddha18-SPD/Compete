@@ -20,6 +20,7 @@ export interface Run {
   id: string
   run_name: string
   status: string
+  run_type: 'live' | 'mock'
   query_set_version: string
   created_at: string
   completed_at?: string
@@ -68,6 +69,11 @@ export interface QueryDetail {
 
 export const api = {
   runs: () => get<Run[]>('/runs'),
+  createLiveRun: (opts?: { prompt?: string; queryIds?: string[] }) =>
+    post<{ run_id: string; status: string }>('/runs/live', {
+      prompt: opts?.prompt ?? null,
+      query_ids: opts?.queryIds ?? null,
+    }),
   createMockRun: () => post<{ run_id: string; status: string }>('/runs/mock'),
   run: (id: string) => get<Run>(`/runs/${id}`),
   summary: (runId: string) => get<Summary>(`/runs/${runId}/summary`),
@@ -78,6 +84,13 @@ export const api = {
   },
   queryDetail: (runId: string, queryId: string) =>
     get<QueryDetail>(`/runs/${runId}/queries/${queryId}`),
+  progress: (runId: string) => get<{
+    status: string
+    captured_queries: number
+    by_product: Record<string, number>
+    verdict_count: number
+    total_verdicts_expected: number
+  }>(`/runs/${runId}/progress`),
   queries: () => get<unknown[]>('/queries'),
   findings: (runId: string) => get<{
     findings: Array<{

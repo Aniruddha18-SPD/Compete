@@ -33,7 +33,9 @@ async def init_db():
             query_id TEXT REFERENCES queries(id),
             assertion_text TEXT NOT NULL,
             level TEXT NOT NULL,
-            dimension TEXT NOT NULL
+            dimension TEXT NOT NULL,
+            assertion_type TEXT DEFAULT 'soft_binary',
+            check_pattern TEXT
         );
 
         CREATE TABLE IF NOT EXISTS runs (
@@ -41,6 +43,7 @@ async def init_db():
             run_name TEXT,
             query_set_version TEXT DEFAULT 'v1',
             status TEXT DEFAULT 'pending',
+            run_type TEXT DEFAULT 'mock',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             completed_at TIMESTAMP
         );
@@ -77,3 +80,16 @@ async def init_db():
         );
         """)
         await db.commit()
+
+    # Safe migrations for existing databases
+    async with aiosqlite.connect(DB_PATH) as db:
+        for stmt in [
+            "ALTER TABLE runs ADD COLUMN run_type TEXT DEFAULT 'mock'",
+            "ALTER TABLE assertions ADD COLUMN assertion_type TEXT DEFAULT 'soft_binary'",
+            "ALTER TABLE assertions ADD COLUMN check_pattern TEXT",
+        ]:
+            try:
+                await db.execute(stmt)
+                await db.commit()
+            except Exception:
+                pass  # Column already exists

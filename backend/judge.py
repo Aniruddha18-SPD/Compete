@@ -1,57 +1,76 @@
-"""Judge worker: OpenAI for scoring, Braintrust for experiment logging."""
+"""Judge worker: Anthropic Claude for scoring, Braintrust for experiment logging."""
 import asyncio
 import json
 import os
+import re
 import uuid
 import aiosqlite
-from openai import OpenAI
 import braintrust
 from database import DB_PATH
 
 from typing import Optional
 
-MODEL = "gpt-4o-mini"
+JUDGE_MODEL = "claude-haiku-4-5-20251001"
 MAX_CONCURRENCY = 5
 
-_oai: Optional[OpenAI] = None
+
+def _get_anthropic():
+    import anthropic
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY is not set.")
+    return anthropic.Anthropic(api_key=key)
 
 
-def get_oai() -> OpenAI:
-    global _oai
-    if _oai is None:
-        key = os.environ.get("OPENAI_API_KEY", "")
-        if not key:
-            raise RuntimeError("OPENAI_API_KEY is not set.")
-        _oai = OpenAI(api_key=key)
-    return _oai
+def _extract_json(text: str) -> dict:
+    """Pull the first JSON object out of a model response."""
+    text = text.strip()
+    # Strip markdown fences if present
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        return json.loads(match.group())
+    return json.loads(text)
 
 
 def score_assertion(query_text: str, response_text: str, assertion_text: str,
-                    level: str, dimension: str) -> dict:
-    """Call OpenAI directly to score one (response, assertion) pair."""
-    prompt = f"""You are evaluating an AI travel assistant's response against a specific assertion.
+                    level: str, dimension: str,
+                    assertion_type: str = "soft_binary", check_pattern: str | None = None) -> dict:
+    """Score one (response, assertion) pair.
 
-Query: {query_text}
+    hard_programmatic: regex match — instant, no LLM call.
+    soft_binary: Claude Haiku judge using check_pattern as the binary criterion.
+    """
+    if assertion_type == "hard_programmatic" and check_pattern:
+        passed = bool(re.search(check_pattern, response_text, re.IGNORECASE))
+        return {"passed": passed, "reasoning": "Regex match", "confidence": 1.0}
 
-Response: {response_text}
+    # Use check_pattern as the precise binary criterion when available
+    criterion = check_pattern if check_pattern else assertion_text
+    prompt = f"""You are evaluating an AI travel assistant's response against a specific criterion.
 
-Assertion: {assertion_text}
-Severity: {level} | Dimension: {dimension}
+User query: {query_text}
 
-Does the response satisfy the assertion? Return JSON with:
+Response:
+{response_text[:3000]}
+
+Criterion (answer YES or NO):
+{criterion}
+
+Answer ONLY 'YES' or 'NO' first, then one sentence of reasoning.
+Return ONLY a JSON object with these exact keys:
 - "passed": true or false
 - "reasoning": one sentence explaining your verdict
-- "confidence": float 0.0–1.0
+- "confidence": float 0.0–1.0"""
 
-Return only the JSON object."""
-
-    result = get_oai().chat.completions.create(
-        model=MODEL,
+    client = _get_anthropic()
+    msg = client.messages.create(
+        model=JUDGE_MODEL,
         max_tokens=256,
         messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"},
     )
-    return json.loads(result.choices[0].message.content.strip())
+    return _extract_json(msg.content[0].text)
 
 
 async def judge_run(run_id: str):
@@ -71,7 +90,8 @@ async def judge_run(run_id: str):
         responses = [dict(r) for r in await cur.fetchall()]
 
         cur2 = await db.execute(
-            "SELECT a.id, a.query_id, a.assertion_text, a.level, a.dimension FROM assertions a"
+            "SELECT a.id, a.query_id, a.assertion_text, a.level, a.dimension, "
+            "a.assertion_type, a.check_pattern FROM assertions a"
         )
         all_assertions = [dict(a) for a in await cur2.fetchall()]
 
@@ -104,6 +124,8 @@ async def judge_run(run_id: str):
                     score_assertion,
                     resp["query_text"], resp["response_text"],
                     assertion["assertion_text"], assertion["level"], assertion["dimension"],
+                    assertion.get("assertion_type", "soft_binary"),
+                    assertion.get("check_pattern"),
                 )
             except Exception as e:
                 verdict = {"passed": False, "reasoning": f"Judge error: {e}", "confidence": 0.0}

@@ -3,7 +3,14 @@ import { api, Run, PivotRow } from '../api'
 
 const MT = '#4f8ef7'
 const WB = '#f97316'
-const INTENTS = ['Transactional', 'Itinerary', 'Personalized', 'Live Data', 'Edge Cases']
+const INTENTS = ['transactional', 'itinerary', 'personalized', 'live_data', 'edge_case']
+const INTENT_LABEL: Record<string, string> = {
+  transactional: 'Transactional',
+  itinerary: 'Itinerary',
+  personalized: 'Personalized',
+  live_data: 'Live Data',
+  edge_case: 'Edge Cases',
+}
 
 interface RunPoint {
   label: string
@@ -109,7 +116,7 @@ export default function Trends() {
             {INTENTS.map(intent => (
               <div key={intent} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 22px' }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--mindtrip)', marginBottom: 16 }}>
-                  {intent} – Weekly Trend
+                  {INTENT_LABEL[intent] ?? intent} – Weekly Trend
                 </p>
                 <LineChart points={data.byIntent[intent]} height={220} compact />
               </div>
