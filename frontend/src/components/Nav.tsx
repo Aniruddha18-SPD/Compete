@@ -14,8 +14,14 @@ export default function Nav({ theme, onToggleTheme }: { theme: 'dark' | 'light';
       height: 48,
       position: 'sticky', top: 0, zIndex: 100,
     }}>
-      <Link to={isV2 ? '/v2' : '/'} style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.8px' }}>
-        <span style={{ color: 'var(--mindtrip)' }}>Compete</span>
+      <Link to={isV2 ? '/v2' : '/'} style={{
+        fontWeight: 800, fontSize: 26, letterSpacing: '-1px',
+        background: 'linear-gradient(90deg, var(--mindtrip) 0%, var(--wanderboat) 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+      }}>
+        Compete
       </Link>
       <div style={{ display: 'flex', gap: 2, marginLeft: 'auto', alignItems: 'center' }}>
         {isV2 ? (
