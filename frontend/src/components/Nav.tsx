@@ -14,10 +14,8 @@ export default function Nav({ theme, onToggleTheme }: { theme: 'dark' | 'light';
       height: 48,
       position: 'sticky', top: 0, zIndex: 100,
     }}>
-      <Link to={isV2 ? '/v2' : '/'} style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: 'var(--mindtrip)' }}>Mindtrip</span>
-        <span style={{ color: 'var(--muted)', fontSize: 12 }}>vs</span>
-        <span style={{ color: 'var(--wanderboat)' }}>Wanderboat</span>
+      <Link to={isV2 ? '/v2' : '/'} style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.5px' }}>
+        <span style={{ color: 'var(--mindtrip)' }}>Compete</span>
       </Link>
       <div style={{ display: 'flex', gap: 2, marginLeft: 'auto', alignItems: 'center' }}>
         {isV2 ? (
