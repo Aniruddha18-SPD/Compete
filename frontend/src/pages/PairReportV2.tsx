@@ -47,6 +47,7 @@ export default function PairReportV2() {
   const [search, setSearch] = useState('')
 
   const [drillPanel, setDrillPanel] = useState<string | null>(null)
+  const [outcomeDrill, setOutcomeDrill] = useState<string | null>(null)
 
   type Finding = { title: string; winner: 'mindtrip' | 'wanderboat' | 'neutral'; intent: string; summary: string; evidence: string }
   const [findings, setFindings] = useState<Finding[] | null>(null)
@@ -265,6 +266,8 @@ export default function PairReportV2() {
               expandedRows={expandedRows}
               onToggleRow={toggleRow}
               onDrillIn={setDrillPanel}
+              outcomeDrill={outcomeDrill}
+              onOutcomeDrillIn={setOutcomeDrill}
             />
           ) : (
             <WinLoseView
@@ -286,6 +289,16 @@ export default function PairReportV2() {
           pairs={drillPairs}
           runId={runId!}
           onClose={() => setDrillPanel(null)}
+        />
+      )}
+
+      {/* Outcome drill-in panel */}
+      {outcomeDrill && (
+        <DrillPanel
+          label={OUTCOME_LABEL[outcomeDrill] || outcomeDrill}
+          pairs={pairs.filter(p => p.outcome === outcomeDrill)}
+          runId={runId!}
+          onClose={() => setOutcomeDrill(null)}
         />
       )}
     </div>
@@ -432,7 +445,7 @@ function StepRow({ done, active, label, detail }: {
 
 /* ─── Summary Tab ─── */
 function SummaryView({
-  summary, totalOutcomes, pivotRows, pivotBy, pairs, expandedRows, onToggleRow, onDrillIn,
+  summary, totalOutcomes, pivotRows, pivotBy, pairs, expandedRows, onToggleRow, onDrillIn, outcomeDrill, onOutcomeDrillIn,
 }: {
   summary: Summary
   totalOutcomes: number
@@ -442,6 +455,8 @@ function SummaryView({
   expandedRows: Set<string>
   onToggleRow: (v: string) => void
   onDrillIn: (v: string) => void
+  outcomeDrill: string | null
+  onOutcomeDrillIn: (v: string) => void
 }) {
   const pct = (k: string) => totalOutcomes ? Math.round((summary.outcomes[k] || 0) / totalOutcomes * 100) : 0
   const segments = [
@@ -496,12 +511,12 @@ function SummaryView({
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
           {/* Header */}
           <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 120px 80px 160px 80px',
+            display: 'grid', gridTemplateColumns: '1fr 120px 80px 160px',
             gap: 0, padding: '10px 16px',
             borderBottom: '1px solid var(--border)',
             background: 'var(--surface2)',
           }}>
-            {['Intent', 'Win / Lose / Tie / Fail', '#Queries', 'Per-Query Pass Rate', 'Analysis'].map(h => (
+            {['Intent', 'Win / Lose / Tie / Fail', '#Queries', 'Per-Query Pass Rate'].map(h => (
               <span key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', color: 'var(--muted)', textTransform: 'uppercase' }}>{h}</span>
             ))}
           </div>
@@ -512,20 +527,25 @@ function SummaryView({
             return (
               <div key={row.pivot_val}>
                 <button
-                  onClick={() => onToggleRow(row.pivot_val)}
+                  onClick={() => onDrillIn(row.pivot_val)}
                   style={{
-                    width: '100%', display: 'grid', gridTemplateColumns: '1fr 120px 80px 160px 80px',
+                    width: '100%', display: 'grid', gridTemplateColumns: '1fr 120px 80px 160px',
                     gap: 0, padding: '11px 16px', textAlign: 'left',
                     borderBottom: i < pivotRows.length - 1 || isExpanded ? '1px solid var(--border)' : undefined,
                     background: isExpanded ? 'var(--surface2)' : 'var(--surface)',
                     transition: 'background 0.1s',
                   }}
-                  onMouseEnter={e => { if (!isExpanded) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)' }}
-                  onMouseLeave={e => { if (!isExpanded) (e.currentTarget as HTMLElement).style.background = 'var(--surface)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isExpanded ? 'var(--surface2)' : 'var(--surface)' }}
                 >
                   {/* Label */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 10, color: 'var(--muted)' }}>{isExpanded ? '▼' : '▶'}</span>
+                    <button
+                      onClick={e => { e.stopPropagation(); onToggleRow(row.pivot_val) }}
+                      style={{ fontSize: 10, color: 'var(--muted)', lineHeight: 1, padding: '2px 3px', borderRadius: 3 }}
+                    >
+                      {isExpanded ? '▼' : '▶'}
+                    </button>
                     <span style={{ fontWeight: 600, fontSize: 13 }}>{row.pivot_val}</span>
                   </div>
 
@@ -552,14 +572,6 @@ function SummaryView({
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>·</span>
                     <span style={{ fontSize: 12, color: WB, fontWeight: 600 }}>{Math.round(row.wanderboat_pass_rate * 100)}%</span>
                   </div>
-
-                  {/* Analysis */}
-                  <button
-                    onClick={e => { e.stopPropagation(); onDrillIn(row.pivot_val) }}
-                    style={{ fontSize: 10, color: 'var(--mindtrip)', textDecoration: 'underline', textAlign: 'left' }}
-                  >
-                    Drill in →
-                  </button>
                 </button>
 
                 {/* Sub-rows placeholder */}
@@ -621,7 +633,7 @@ function SummaryView({
           <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 12 }}>
             Outcome Breakdown
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
               { key: 'mindtrip_wins', label: 'Mindtrip Wins', color: MT },
               { key: 'wanderboat_wins', label: 'Wanderboat Wins', color: WB },
@@ -631,13 +643,28 @@ function SummaryView({
             ].map(({ key, label, color }) => {
               const count = summary.outcomes[key] || 0
               const p = totalOutcomes ? Math.round(count / totalOutcomes * 100) : 0
+              const isActive = outcomeDrill === key
               return (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  key={key}
+                  onClick={() => onOutcomeDrillIn(key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    width: '100%', textAlign: 'left', cursor: 'pointer',
+                    padding: '5px 6px', borderRadius: 6,
+                    background: isActive ? `${color}15` : 'transparent',
+                    border: `1px solid ${isActive ? color + '44' : 'transparent'}`,
+                    transition: 'background 0.1s, border-color 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
                   <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
                   <span style={{ fontSize: 12, color: 'var(--muted)', flex: 1 }}>{label}</span>
                   <span style={{ fontSize: 13, fontWeight: 700, color }}>{count}</span>
-                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>{p}%</span>
-                </div>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 4 }}>{p}%</span>
+                  <span style={{ fontSize: 10, color, opacity: 0.7, marginLeft: 2 }}>→</span>
+                </button>
               )
             })}
           </div>

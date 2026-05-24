@@ -15,8 +15,12 @@ const OUTCOME_LABEL: Record<string, string> = {
   mindtrip_wins: 'Mindtrip', wanderboat_wins: 'Wanderboat', both_pass: 'Both Pass', both_fail: 'Both Fail', tie: 'Tie',
 }
 
-const BUCKETS = ['Transactional', 'Itinerary', 'Personalized', 'Live Data', 'Edge Cases']
-const SEGMENT2 = ['Single', 'Multi-Step', 'Comparison', 'Open-Ended', 'With-Budget']
+const BUCKETS = ['transactional', 'itinerary', 'personalized', 'live_data', 'edge_case']
+const BUCKET_LABEL: Record<string, string> = {
+  transactional: 'Transactional', itinerary: 'Itinerary', personalized: 'Personalized',
+  live_data: 'Live Data', edge_case: 'Edge Cases',
+}
+const DOMAINS = ['easy', 'medium', 'hard']
 
 type PivotKey = 'intent' | 'domain'
 
@@ -31,6 +35,8 @@ export default function PairReport() {
   const [filterOutcome, setFilterOutcome] = useState('')
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'summary' | 'table'>('summary')
+  const [drillPanel, setDrillPanel] = useState<string | null>(null)
+  const [outcomeDrill, setOutcomeDrill] = useState<string | null>(null)
 
   const reload = async () => {
     if (!runId) return
@@ -67,185 +73,284 @@ export default function PairReport() {
   if (!run) return <div style={{ padding: 40, color: 'var(--muted)' }}>Loading…</div>
 
   return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 24px' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
-          <Link to="/">← Reports</Link>
-        </div>
-        <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.5px' }}>
-          Compete Eval — <span style={{ color: MT }}>Mindtrip</span> vs <span style={{ color: WB }}>Wanderboat</span>
-        </h1>
-        <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>
-          {total} prompts · 5 capability buckets · LLM judge via OpenAI gpt-4o-mini · {date}
-          {run.status !== 'complete' && (
-            <span style={{ marginLeft: 12, color: 'var(--yellow)', fontWeight: 600 }}>
-              ⏳ {run.status}…
-            </span>
+    <div style={{ display: 'flex', height: 'calc(100vh - 48px)', overflow: 'hidden' }}>
+      {/* Scrollable main content */}
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 24px' }}>
+          {/* Header */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
+              <Link to="/">← Reports</Link>
+            </div>
+            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.5px' }}>
+              Compete Eval — <span style={{ color: MT }}>Mindtrip</span> vs <span style={{ color: WB }}>Wanderboat</span>
+            </h1>
+            <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>
+              {total} prompts · 5 capability buckets · LLM judge · {date}
+              {run.status !== 'complete' && (
+                <span style={{ marginLeft: 12, color: 'var(--yellow)', fontWeight: 600 }}>
+                  ⏳ {run.status}…
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* View toggle */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
+            {(['summary', 'table'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                padding: '5px 14px', borderRadius: 6, fontSize: 13,
+                fontWeight: view === v ? 600 : 400,
+                background: view === v ? 'var(--surface2)' : 'transparent',
+                color: view === v ? 'var(--text)' : 'var(--muted)',
+                border: `1px solid ${view === v ? 'var(--border)' : 'transparent'}`,
+              }}>
+                {v === 'summary' ? 'Summary' : 'Prompt Table'}
+              </button>
+            ))}
+          </div>
+
+          {view === 'summary' ? (
+            <SummaryView
+              total={total} mt={mt} wb={wb} tie={tie} battleScore={battleScore}
+              outcomes={outcomes} summary={summary} pairs={pairs}
+              pivotData={pivotData} pivotBy={pivotBy} setPivotBy={setPivotBy}
+              onDrillIn={setDrillPanel} outcomeDrill={outcomeDrill} onOutcomeDrillIn={setOutcomeDrill}
+            />
+          ) : (
+            <TableView
+              pairs={filtered} runId={runId!}
+              filterIntent={filterIntent} setFilterIntent={setFilterIntent}
+              filterOutcome={filterOutcome} setFilterOutcome={setFilterOutcome}
+              search={search} setSearch={setSearch}
+            />
           )}
         </div>
       </div>
 
-      {/* View toggle */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
-        {(['summary', 'table'] as const).map(v => (
-          <button key={v} onClick={() => setView(v)} style={{
-            padding: '5px 14px', borderRadius: 6, fontSize: 13,
-            fontWeight: view === v ? 600 : 400,
-            background: view === v ? 'var(--surface2)' : 'transparent',
-            color: view === v ? 'var(--text)' : 'var(--muted)',
-            border: `1px solid ${view === v ? 'var(--border)' : 'transparent'}`,
-          }}>
-            {v === 'summary' ? 'Summary' : 'Prompt Table'}
-          </button>
-        ))}
-      </div>
-
-      {view === 'summary' ? (
-        <SummaryView
-          total={total} mt={mt} wb={wb} tie={tie} battleScore={battleScore}
-          outcomes={outcomes} summary={summary} pairs={pairs}
-          pivotData={pivotData} pivotBy={pivotBy} setPivotBy={setPivotBy}
+      {/* Drill panel — flex sibling so it spans full height like SBS view */}
+      {drillPanel && (
+        <DrillPanel
+          label={BUCKET_LABEL[drillPanel] || drillPanel}
+          pairs={pairs.filter(p => pivotBy === 'intent' ? p.intent === drillPanel : p.domain === drillPanel)}
+          runId={runId!}
+          onClose={() => setDrillPanel(null)}
         />
-      ) : (
-        <TableView
-          pairs={filtered} runId={runId!}
-          filterIntent={filterIntent} setFilterIntent={setFilterIntent}
-          filterOutcome={filterOutcome} setFilterOutcome={setFilterOutcome}
-          search={search} setSearch={setSearch}
+      )}
+      {outcomeDrill && (
+        <DrillPanel
+          label={OUTCOME_LABEL[outcomeDrill] || outcomeDrill}
+          pairs={pairs.filter(p => p.outcome === outcomeDrill)}
+          runId={runId!}
+          onClose={() => setOutcomeDrill(null)}
         />
       )}
     </div>
   )
 }
 
-function SummaryView({ total, mt, wb, tie, battleScore, outcomes, summary, pairs, pivotData, pivotBy, setPivotBy }: {
+function SummaryView({ total, mt, wb, tie, battleScore, outcomes, summary, pairs, pivotData, pivotBy, setPivotBy, onDrillIn, outcomeDrill, onOutcomeDrillIn }: {
   total: number; mt: number; wb: number; tie: number; battleScore: number
   outcomes: Record<string, number>; summary: Summary | null
   pairs: PairResult[]; pivotData: PivotRow[]; pivotBy: string
   setPivotBy: (v: 'intent' | 'domain') => void
+  onDrillIn: (v: string) => void
+  outcomeDrill: string | null
+  onOutcomeDrillIn: (v: string) => void
 }) {
-  // Bucket counts from pivot data (intent pivot)
   const bucketCounts: Record<string, Record<string, number>> = {}
-  pivotData.forEach(r => {
-    bucketCounts[r.pivot_val] = r.outcomes
-  })
+  pivotData.forEach(r => { bucketCounts[r.pivot_val] = r.outcomes })
 
   const winner = mt > wb ? 'mindtrip' : wb > mt ? 'wanderboat' : 'tie'
+  const totalOutcomes = Object.values(outcomes).reduce((s, v) => s + v, 0)
 
   return (
-    <>
-      {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
-        <Card label="Battle Score" value={`${Math.round(battleScore * 100)}%`}
-          sub={`${winner === 'mindtrip' ? 'Mindtrip' : winner === 'wanderboat' ? 'Wanderboat' : 'Tied'} advantage (${Math.max(mt, wb)}/${total} wins)`}
-          color="var(--text)" />
-        <Card label="Mindtrip Wins" value={String(mt)}
-          sub={pairs.filter(p => p.outcome === 'mindtrip_wins').map(p => p.query_id).join(', ')}
-          color={MT} />
-        <Card label="Wanderboat Wins" value={String(wb)}
-          sub={pairs.filter(p => p.outcome === 'wanderboat_wins').map(p => p.query_id).join(', ')}
-          color={WB} />
-        <Card label="Ties" value={String(tie)}
-          sub={pairs.filter(p => p.outcome === 'tie' || p.outcome === 'both_pass').map(p => p.query_id).join(', ') || '—'}
-          color={TIE} />
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 20, alignItems: 'start' }}>
+      {/* Left column */}
+      <div style={{ minWidth: 0 }}>
+        {/* Summary cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+          <Card label="Battle Score" value={`${Math.round(battleScore * 100)}%`}
+            sub={`${winner === 'mindtrip' ? 'Mindtrip' : winner === 'wanderboat' ? 'Wanderboat' : 'Tied'} advantage (${Math.max(mt, wb)}/${total} wins)`}
+            color="var(--text)" />
+          <Card label="Mindtrip Wins" value={String(mt)}
+            sub={pairs.filter(p => p.outcome === 'mindtrip_wins').map(p => p.query_id).join(', ')}
+            color={MT} />
+          <Card label="Wanderboat Wins" value={String(wb)}
+            sub={pairs.filter(p => p.outcome === 'wanderboat_wins').map(p => p.query_id).join(', ')}
+            color={WB} />
+          <Card label="Ties" value={String(tie)}
+            sub={pairs.filter(p => p.outcome === 'tie' || p.outcome === 'both_pass').map(p => p.query_id).join(', ') || '—'}
+            color={TIE} />
+        </div>
+
+        {/* Score bar */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '18px 20px', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 13, fontWeight: 600, marginBottom: 14 }}>Overall Distribution</h2>
+          <div style={{ display: 'flex', height: 36, borderRadius: 8, overflow: 'hidden' }}>
+            {total > 0 && <>
+              <ScoreSegment width={(mt / total) * 100} color={MT} label={`Mindtrip ${Math.round((mt / total) * 100)}%`} />
+              <ScoreSegment width={(wb / total) * 100} color={WB} label={`WB ${Math.round((wb / total) * 100)}%`} />
+              <ScoreSegment width={(tie / total) * 100} color={TIE} label="Tie" />
+              <ScoreSegment width={((outcomes['both_fail'] || 0) / total) * 100} color={RED} label="" />
+            </>}
+          </div>
+          <div style={{ display: 'flex', gap: 20, marginTop: 10, fontSize: 12, color: 'var(--muted)', flexWrap: 'wrap' }}>
+            <LegendDot color={MT} label={`Mindtrip wins (${mt})`} />
+            <LegendDot color={WB} label={`Wanderboat wins (${wb})`} />
+            <LegendDot color={TIE} label={`Ties (${tie})`} />
+            {summary && (
+              <span style={{ marginLeft: 'auto' }}>
+                MT avg pass rate {pct(summary.mindtrip_avg_pass_rate)} · WB {pct(summary.wanderboat_avg_pass_rate)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Bucket breakdown */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12, marginBottom: 20 }}>
+          {BUCKETS.map(bucket => {
+            const oc = bucketCounts[bucket] || {}
+            const bmt = oc['mindtrip_wins'] || 0
+            const bwb = oc['wanderboat_wins'] || 0
+            const btie = (oc['tie'] || 0) + (oc['both_pass'] || 0) + (oc['both_fail'] || 0)
+            const bmax = Math.max(bmt, bwb, btie, 1)
+            return (
+              <div key={bucket} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 14px' }}>
+                <h3 style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 12, fontWeight: 600 }}>
+                  {BUCKET_LABEL[bucket] || bucket}
+                </h3>
+                <BucketBar label="Mindtrip" value={bmt} max={bmax} color={MT} />
+                <BucketBar label="Wanderboat" value={bwb} max={bmax} color={WB} />
+                <BucketBar label="Tie" value={btie} max={bmax} color={TIE} />
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Thesis */}
+        <div style={{
+          background: 'var(--surface)', border: '1px solid var(--border)',
+          borderLeft: `3px solid ${MT}`, borderRadius: 'var(--radius-lg)',
+          padding: '16px 20px', marginBottom: 20,
+        }}>
+          <h2 style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Key Finding</h2>
+          <p style={{ fontSize: 14 }}>
+            <strong style={{ color: MT }}>Mindtrip</strong> leads on transactional and itinerary queries where specificity wins — flight details, hotel names, concrete day-by-day plans. <strong style={{ color: WB }}>Wanderboat</strong> performs better on personalized and edge-case queries where opinionated reasoning matters more than data density. Both products struggle on live-data queries where ground truth is hard to verify.
+          </p>
+        </div>
+
+        {/* Per-prompt pivot table */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>By</span>
+            <select value={pivotBy} onChange={e => setPivotBy(e.target.value as 'intent' | 'domain')}>
+              <option value="intent">Bucket (Intent)</option>
+              <option value="domain">Difficulty</option>
+            </select>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--surface2)' }}>
+                {['', 'Queries', 'MT Pass Rate', 'WB Pass Rate', 'Distribution', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', fontWeight: 600, borderBottom: '1px solid var(--border)' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pivotData.map(r => (
+                <tr key={r.pivot_val}
+                  onClick={() => onDrillIn(r.pivot_val)}
+                  style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.1s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface2)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13 }}>
+                    {BUCKET_LABEL[r.pivot_val] || r.pivot_val}
+                  </td>
+                  <td style={{ padding: '10px 16px', color: 'var(--muted)', fontSize: 13 }}>{r.query_count}</td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <span style={{ color: MT, fontWeight: 700 }}>{pct(r.mindtrip_pass_rate)}</span>
+                  </td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <span style={{ color: WB, fontWeight: 700 }}>{pct(r.wanderboat_pass_rate)}</span>
+                  </td>
+                  <td style={{ padding: '10px 16px' }}>
+                    <MiniDistBar outcomes={r.outcomes} total={r.query_count} />
+                  </td>
+                  <td style={{ padding: '10px 16px', fontSize: 11, color: MT }}>Drill in →</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Score bar */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '18px 20px', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 13, fontWeight: 600, marginBottom: 14 }}>Overall Distribution</h2>
-        <div style={{ display: 'flex', height: 36, borderRadius: 8, overflow: 'hidden' }}>
-          {total > 0 && <>
-            <ScoreSegment width={(mt / total) * 100} color={MT} label={`Mindtrip ${Math.round((mt / total) * 100)}%`} />
-            <ScoreSegment width={(wb / total) * 100} color={WB} label={`WB ${Math.round((wb / total) * 100)}%`} />
-            <ScoreSegment width={(tie / total) * 100} color={TIE} label="Tie" />
-            <ScoreSegment width={((outcomes['both_fail'] || 0) / total) * 100} color={RED} label="" />
-          </>}
-        </div>
-        <div style={{ display: 'flex', gap: 20, marginTop: 10, fontSize: 12, color: 'var(--muted)', flexWrap: 'wrap' }}>
-          <LegendDot color={MT} label={`Mindtrip wins (${mt})`} />
-          <LegendDot color={WB} label={`Wanderboat wins (${wb})`} />
-          <LegendDot color={TIE} label={`Ties (${tie})`} />
+      {/* Right column */}
+      <div>
+        {/* Quality Metrics */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 12 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 16 }}>
+            Quality Metrics
+          </p>
+          <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 2 }}>Per-Query Pass Rate</p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 10 }}>
+            Avg % of assertions that passed per query, weighted equally across all queries.
+          </p>
           {summary && (
-            <span style={{ marginLeft: 'auto' }}>
-              MT avg pass rate {pct(summary.mindtrip_avg_pass_rate)} · WB {pct(summary.wanderboat_avg_pass_rate)}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: MT }}>{pct(summary.mindtrip_avg_pass_rate)}</span>
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>vs</span>
+              <span style={{ fontSize: 22, fontWeight: 800, color: WB }}>{pct(summary.wanderboat_avg_pass_rate)}</span>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Bucket breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
-        {BUCKETS.map(bucket => {
-          const oc = bucketCounts[bucket] || {}
-          const bmt = oc['mindtrip_wins'] || 0
-          const bwb = oc['wanderboat_wins'] || 0
-          const btie = (oc['tie'] || 0) + (oc['both_pass'] || 0) + (oc['both_fail'] || 0)
-          const bmax = Math.max(bmt, bwb, btie, 1)
-          return (
-            <div key={bucket} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 14px' }}>
-              <h3 style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 12, fontWeight: 600 }}>
-                {bucket}
-              </h3>
-              <BucketBar label="Mindtrip" value={bmt} max={bmax} color={MT} />
-              <BucketBar label="Wanderboat" value={bwb} max={bmax} color={WB} />
-              <BucketBar label="Tie" value={btie} max={bmax} color={TIE} />
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Thesis */}
-      <div style={{
-        background: 'var(--surface)', border: '1px solid var(--border)',
-        borderLeft: `3px solid ${MT}`, borderRadius: 'var(--radius-lg)',
-        padding: '16px 20px', marginBottom: 20,
-      }}>
-        <h2 style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Key Finding</h2>
-        <p style={{ fontSize: 14 }}>
-          <strong style={{ color: MT }}>Mindtrip</strong> leads on transactional and itinerary queries where specificity wins — flight details, hotel names, concrete day-by-day plans. <strong style={{ color: WB }}>Wanderboat</strong> performs better on personalized and edge-case queries where opinionated reasoning matters more than data density. Both products struggle on live-data queries where ground truth is hard to verify.
-        </p>
-      </div>
-
-      {/* Per-prompt pivot table */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>By</span>
-          <select value={pivotBy} onChange={e => setPivotBy(e.target.value as 'intent' | 'domain')}>
-            <option value="intent">Bucket (Intent)</option>
-            <option value="domain">Query Type (Domain)</option>
-          </select>
+        {/* Outcome Breakdown */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
+          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 12 }}>
+            Outcome Breakdown
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {[
+              { key: 'mindtrip_wins', label: 'Mindtrip Wins', color: MT },
+              { key: 'wanderboat_wins', label: 'Wanderboat Wins', color: WB },
+              { key: 'both_pass', label: 'Both Pass', color: GREEN },
+              { key: 'tie', label: 'Tie', color: TIE },
+              { key: 'both_fail', label: 'Both Fail', color: '#6b7280' },
+            ].map(({ key, label, color }) => {
+              const count = outcomes[key] || 0
+              const p = totalOutcomes ? Math.round(count / totalOutcomes * 100) : 0
+              const isActive = outcomeDrill === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => onOutcomeDrillIn(key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    width: '100%', textAlign: 'left', cursor: 'pointer',
+                    padding: '5px 6px', borderRadius: 6,
+                    background: isActive ? `${color}15` : 'transparent',
+                    border: `1px solid ${isActive ? color + '44' : 'transparent'}`,
+                    transition: 'background 0.1s',
+                  }}
+                  onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)' }}
+                  onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, color: 'var(--muted)', flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color }}>{count}</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 4 }}>{p}%</span>
+                  <span style={{ fontSize: 10, color, opacity: 0.7, marginLeft: 2 }}>→</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'var(--surface2)' }}>
-              {['', 'Queries', 'MT Pass Rate', 'WB Pass Rate', 'Distribution'].map(h => (
-                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', fontWeight: 600, borderBottom: '1px solid var(--border)' }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {pivotData.map(r => (
-              <tr key={r.pivot_val} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '10px 16px', fontWeight: 700, fontSize: 13 }}>{r.pivot_val}</td>
-                <td style={{ padding: '10px 16px', color: 'var(--muted)', fontSize: 13 }}>{r.query_count}</td>
-                <td style={{ padding: '10px 16px' }}>
-                  <span style={{ color: MT, fontWeight: 700 }}>{pct(r.mindtrip_pass_rate)}</span>
-                </td>
-                <td style={{ padding: '10px 16px' }}>
-                  <span style={{ color: WB, fontWeight: 700 }}>{pct(r.wanderboat_pass_rate)}</span>
-                </td>
-                <td style={{ padding: '10px 16px' }}>
-                  <MiniDistBar outcomes={r.outcomes} total={r.query_count} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
-    </>
+    </div>
   )
 }
 
@@ -274,7 +379,7 @@ function TableView({ pairs, runId, filterIntent, setFilterIntent, filterOutcome,
         <input type="text" placeholder="Search prompts…" value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
         <select value={filterIntent} onChange={e => setFilterIntent(e.target.value)}>
           <option value="">All buckets</option>
-          {BUCKETS.map(b => <option key={b} value={b}>{b}</option>)}
+          {BUCKETS.map(b => <option key={b} value={b}>{BUCKET_LABEL[b] || b}</option>)}
         </select>
         <select value={filterOutcome} onChange={e => setFilterOutcome(e.target.value)}>
           <option value="">All outcomes</option>
@@ -437,6 +542,117 @@ function OutcomeTag({ outcome }: { outcome: string }) {
     <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: `${color}22`, color, border: `1px solid ${color}44`, whiteSpace: 'nowrap' }}>
       {OUTCOME_LABEL[outcome] || outcome}
     </span>
+  )
+}
+
+function DrillPanel({ label, pairs, runId, onClose }: {
+  label: string; pairs: PairResult[]; runId: string; onClose: () => void
+}) {
+  const [filter, setFilter] = useState<'All' | 'mindtrip_wins' | 'wanderboat_wins' | 'both_pass' | 'both_fail'>('All')
+  const filtered = filter === 'All' ? pairs : pairs.filter(p => p.outcome === filter)
+
+  return (
+    <div style={{
+      width: 460, minWidth: 460, borderLeft: '1px solid var(--border)',
+      background: 'var(--surface)', overflowY: 'auto',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{
+        padding: '14px 18px', borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10,
+      }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontWeight: 700, fontSize: 14 }}>{label}</p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+            {pairs.length} quer{pairs.length === 1 ? 'y' : 'ies'}
+          </p>
+        </div>
+        <button onClick={onClose} style={{ color: 'var(--muted)', fontSize: 18, lineHeight: 1 }}>✕</button>
+      </div>
+
+      <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {(['All', 'mindtrip_wins', 'wanderboat_wins', 'both_pass', 'both_fail'] as const).map(f => {
+          const count = f === 'All' ? pairs.length : pairs.filter(p => p.outcome === f).length
+          if (count === 0 && f !== 'All') return null
+          return (
+            <button key={f} onClick={() => setFilter(f)} style={{
+              fontSize: 11, fontWeight: filter === f ? 700 : 400,
+              padding: '3px 10px', borderRadius: 20,
+              background: filter === f ? `${OUTCOME_COLOR[f] || MT}22` : 'var(--surface2)',
+              color: filter === f ? (OUTCOME_COLOR[f] || MT) : 'var(--muted)',
+              border: `1px solid ${filter === f ? (OUTCOME_COLOR[f] || MT) + '55' : 'var(--border)'}`,
+            }}>
+              {f === 'All' ? 'All' : OUTCOME_LABEL[f]} ({count})
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {filtered.map(pair => (
+          <div key={pair.id} style={{
+            background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8,
+            padding: '12px 14px',
+          }}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 8 }}>
+              <MiniChip label={BUCKET_LABEL[pair.intent] || pair.intent} />
+              <MiniChip label={pair.domain} />
+              <OutcomeChip outcome={pair.outcome} />
+            </div>
+            <p style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>{pair.query_text}</p>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+              <PassBar label="MT" rate={pair.mindtrip_pass_rate} color={MT} />
+              <PassBar label="WB" rate={pair.wanderboat_pass_rate} color={WB} />
+            </div>
+            <Link
+              to={`/runs/${runId}/queries/${pair.query_id}`}
+              style={{ fontSize: 11, color: MT, fontWeight: 600 }}
+            >
+              Show details →
+            </Link>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <p style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>No queries match.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MiniChip({ label }: { label: string }) {
+  return (
+    <span style={{
+      fontSize: 10, padding: '1px 7px', borderRadius: 20,
+      background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--border)',
+    }}>{label}</span>
+  )
+}
+
+function OutcomeChip({ outcome }: { outcome: string }) {
+  const color = OUTCOME_COLOR[outcome] || 'var(--muted)'
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+      background: `${color}18`, color, border: `1px solid ${color}33`, whiteSpace: 'nowrap',
+    }}>
+      {OUTCOME_LABEL[outcome] || outcome}
+    </span>
+  )
+}
+
+function PassBar({ label, rate, color }: { label: string; rate: number; color: string }) {
+  return (
+    <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+        <span style={{ fontSize: 10, color, fontWeight: 700 }}>{label}</span>
+        <span style={{ fontSize: 10, color: 'var(--muted)' }}>{Math.round(rate * 100)}%</span>
+      </div>
+      <div style={{ height: 4, borderRadius: 2, background: 'var(--border)' }}>
+        <div style={{ height: '100%', borderRadius: 2, background: color, width: `${Math.round(rate * 100)}%` }} />
+      </div>
+    </div>
   )
 }
 
