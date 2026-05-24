@@ -14,7 +14,7 @@ export default function Nav({ theme, onToggleTheme }: { theme: 'dark' | 'light';
       height: 48,
       position: 'sticky', top: 0, zIndex: 100,
     }}>
-      <Link to={isV2 ? '/v2' : '/'} style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.5px' }}>
+      <Link to={isV2 ? '/v2' : '/'} style={{ fontWeight: 800, fontSize: 22, letterSpacing: '-0.8px' }}>
         <span style={{ color: 'var(--mindtrip)' }}>Compete</span>
       </Link>
       <div style={{ display: 'flex', gap: 2, marginLeft: 'auto', alignItems: 'center' }}>
