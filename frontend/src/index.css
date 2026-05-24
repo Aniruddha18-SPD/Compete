@@ -17,6 +17,21 @@
   --radius-lg: 12px;
 }
 
+[data-theme="light"] {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface2: #edf0f7;
+  --border: #d1d9ec;
+  --text: #1a1d27;
+  --muted: #6b7280;
+  --mindtrip: #2563eb;
+  --wanderboat: #ea6a0a;
+  --tie: #7c3aed;
+  --green: #16a34a;
+  --red: #dc2626;
+  --yellow: #ca8a04;
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background: var(--bg);

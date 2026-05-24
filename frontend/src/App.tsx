@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import ReportsList from './pages/ReportsList'
 import PairReport from './pages/PairReport'
@@ -9,9 +10,20 @@ import Trends from './pages/Trends'
 import Nav from './components/Nav'
 
 export default function App() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme === 'light' ? 'light' : ''
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark')
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <Nav />
+      <Nav theme={theme} onToggleTheme={toggleTheme} />
       <main style={{ flex: 1 }}>
         <Routes>
           <Route path="/" element={<ReportsList />} />
