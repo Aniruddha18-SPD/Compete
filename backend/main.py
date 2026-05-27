@@ -393,6 +393,111 @@ Return a JSON object with a single key "findings" whose value is the array. Exam
     return {"findings": findings, "outcomes": outcomes, "avgs": avgs}
 
 
+# ── Recommendations ────────────────────────────────────────────────────────────
+
+@app.post("/api/runs/{run_id}/recommendations")
+async def run_recommendations(run_id: str, db=Depends(get_db)):
+    import anthropic
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+
+    # Gather summary
+    cur = await db.execute(
+        "SELECT pr.outcome, COUNT(*) as c FROM pair_results pr WHERE run_id=? GROUP BY outcome",
+        (run_id,)
+    )
+    outcomes = {r["outcome"]: r["c"] for r in await cur.fetchall()}
+
+    cur2 = await db.execute(
+        "SELECT AVG(mindtrip_pass_rate) as mt, AVG(wanderboat_pass_rate) as wb FROM pair_results WHERE run_id=?",
+        (run_id,)
+    )
+    avgs = row_to_dict(await cur2.fetchone())
+
+    # Per-intent pivot
+    cur3 = await db.execute(
+        "SELECT q.intent, pr.outcome, pr.mindtrip_pass_rate, pr.wanderboat_pass_rate "
+        "FROM pair_results pr JOIN queries q ON pr.query_id=q.id WHERE pr.run_id=?",
+        (run_id,)
+    )
+    pivot_rows = await cur3.fetchall()
+    intent_data: dict = {}
+    for r in pivot_rows:
+        iv = r["intent"]
+        if iv not in intent_data:
+            intent_data[iv] = {"mt": [], "wb": [], "outcomes": []}
+        intent_data[iv]["mt"].append(r["mindtrip_pass_rate"])
+        intent_data[iv]["wb"].append(r["wanderboat_pass_rate"])
+        intent_data[iv]["outcomes"].append(r["outcome"])
+
+    intent_summary = []
+    for intent, d in intent_data.items():
+        mt_avg = sum(d["mt"]) / len(d["mt"])
+        wb_avg = sum(d["wb"]) / len(d["wb"])
+        intent_summary.append({
+            "intent": intent,
+            "mt_pass_rate": round(mt_avg, 3),
+            "wb_pass_rate": round(wb_avg, 3),
+            "outcomes": {o: d["outcomes"].count(o) for o in set(d["outcomes"])},
+        })
+
+    # Sample verdict reasoning per intent
+    cur4 = await db.execute(
+        "SELECT q.intent, r.product, v.judge_reasoning, v.passed "
+        "FROM verdicts v "
+        "JOIN responses r ON v.response_id=r.id "
+        "JOIN queries q ON r.query_id=q.id "
+        "JOIN assertions a ON v.assertion_id=a.id "
+        "WHERE r.run_id=? AND a.level='critical' AND v.passed=0 "
+        "ORDER BY q.intent LIMIT 30",
+        (run_id,)
+    )
+    failures = [dict(r) for r in await cur4.fetchall()]
+
+    prompt = f"""You are analyzing the results of a head-to-head AI travel assistant evaluation: Mindtrip vs Wanderboat.
+
+OVERALL RESULTS:
+- Mindtrip wins: {outcomes.get('mindtrip_wins', 0)} queries
+- Wanderboat wins: {outcomes.get('wanderboat_wins', 0)} queries
+- Both pass: {outcomes.get('both_pass', 0)} queries
+- Mindtrip avg pass rate: {round((avgs.get('mt') or 0)*100)}%
+- Wanderboat avg pass rate: {round((avgs.get('wb') or 0)*100)}%
+
+PER-INTENT BREAKDOWN:
+{json.dumps(intent_summary, indent=2)}
+
+SAMPLE FAILURE REASONING (judge explanations for failed assertions):
+{json.dumps(failures[:20], indent=2)}
+
+Generate actionable strategic recommendations based on these evaluation outcomes. Provide recommendations for two areas:
+1. Product Roadmap Suggestions
+2. Marketing Suggestions
+
+Return a JSON object with exactly two keys:
+- "product_recommendations": array of objects with keys: "title" (string), "description" (string), "rationale" (string), "category" (string, e.g., "Feature Gap", "Performance"), "impact" (string, one of: "High Impact", "Medium Impact", "Low Effort", "Competitive Risk", "Strategic Differentiator"), "competitor_references" (array of strings, e.g., ["Mindtrip"]), "evidence" (string, citing the judge reasoning or data)
+- "marketing_recommendations": array of objects with keys: "title" (string), "summary" (string), "target_audience" (string), "category" (string, e.g., "Product Positioning", "Sales Enablement"), "messaging_angle" (string), "confidence" (string: "High", "Medium", "Low"), "competitor_references" (array of strings), "evidence" (string, citing data)
+
+Each array should have 3-5 recommendations."""
+
+    loop = asyncio.get_event_loop()
+    def call_claude():
+        import re
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = msg.content[0].text.strip()
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+        return json.loads(text)
+
+    recs = await loop.run_in_executor(None, call_claude)
+    return {
+        "product_recommendations": recs.get("product_recommendations", []),
+        "marketing_recommendations": recs.get("marketing_recommendations", [])
+    }
+
+
 # ── Live progress ─────────────────────────────────────────────────────────────
 
 @app.get("/api/runs/{run_id}/progress")

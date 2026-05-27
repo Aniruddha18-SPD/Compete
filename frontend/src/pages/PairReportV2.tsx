@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { api, Run, Summary, PivotRow, PairResult } from '../api'
+import { api, Run, Summary, PivotRow, PairResult, ProductRecommendation, MarketingRecommendation } from '../api'
 
 const MT = 'var(--mindtrip)'
 const WB = 'var(--wanderboat)'
@@ -24,7 +24,7 @@ const OUTCOME_LABEL: Record<string, string> = {
   both_fail: 'Both fail',
 }
 
-type Tab = 'summary' | 'winlose' | 'findings'
+type Tab = 'summary' | 'winlose' | 'findings' | 'product_recs' | 'marketing_recs'
 type PivotBy = 'intent' | 'domain'
 
 export default function PairReportV2() {
@@ -52,6 +52,20 @@ export default function PairReportV2() {
   type Finding = { title: string; winner: 'mindtrip' | 'wanderboat' | 'neutral'; intent: string; summary: string; evidence: string }
   const [findings, setFindings] = useState<Finding[] | null>(null)
   const [findingsLoading, setFindingsLoading] = useState(false)
+
+  const [productRecs, setProductRecs] = useState<ProductRecommendation[] | null>(null)
+  const [marketingRecs, setMarketingRecs] = useState<MarketingRecommendation[] | null>(null)
+  const [recsLoading, setRecsLoading] = useState(false)
+
+  const loadRecs = useCallback(() => {
+    if (!productRecs && !marketingRecs && !recsLoading && runId) {
+      setRecsLoading(true)
+      api.recommendations(runId).then(r => {
+        setProductRecs(r.product_recommendations)
+        setMarketingRecs(r.marketing_recommendations)
+      }).finally(() => setRecsLoading(false))
+    }
+  }, [productRecs, marketingRecs, recsLoading, runId])
 
   const load = useCallback(async () => {
     if (!runId) return
@@ -250,11 +264,28 @@ export default function PairReportV2() {
               api.findings(runId).then(r => setFindings(r.findings)).finally(() => setFindingsLoading(false))
             }
           }} icon="✦">Key Findings</TabButton>
+          <TabButton active={tab === 'product_recs'} onClick={() => { setTab('product_recs'); loadRecs(); }} icon="🗺">Product Roadmap</TabButton>
+          <TabButton active={tab === 'marketing_recs'} onClick={() => { setTab('marketing_recs'); loadRecs(); }} icon="📣">Marketing</TabButton>
         </div>
 
         {/* Content */}
         <div style={{ padding: '20px 24px', flex: 1 }}>
-          {tab === 'findings' ? (
+          {tab === 'product_recs' || tab === 'marketing_recs' ? (
+            <RecommendationsView
+              type={tab}
+              data={tab === 'product_recs' ? productRecs : marketingRecs}
+              loading={recsLoading}
+              runId={runId!}
+              onRegenerate={() => {
+                setProductRecs(null); setMarketingRecs(null);
+                setRecsLoading(true);
+                api.recommendations(runId!).then(r => {
+                  setProductRecs(r.product_recommendations);
+                  setMarketingRecs(r.marketing_recommendations);
+                }).finally(() => setRecsLoading(false));
+              }}
+            />
+          ) : tab === 'findings' ? (
             <KeyFindingsView findings={findings} loading={findingsLoading} summary={summary} />
           ) : tab === 'summary' ? (
             <SummaryView
@@ -1152,3 +1183,210 @@ function MetricBlock({ label, sublabel, desc, mtVal, wbVal, mtDelta }: {
     </div>
   )
 }
+
+/* ─── Recommendations ─── */
+function RecommendationsView({ type, data, loading, runId, onRegenerate }: {
+  type: 'product_recs' | 'marketing_recs'
+  data: ProductRecommendation[] | MarketingRecommendation[] | null
+  loading: boolean
+  runId: string
+  onRegenerate: () => void
+}) {
+  const [filterCat, setFilterCat] = useState('All')
+  
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', gap: 16 }}>
+        <div style={{ fontSize: 28 }}>{type === 'product_recs' ? '🗺' : '📣'}</div>
+        <p style={{ color: 'var(--muted)', fontSize: 14 }}>Generating strategic recommendations…</p>
+        <p style={{ color: 'var(--muted)', fontSize: 12 }}>Analyzing evaluation results to provide actionable insights</p>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  const isProduct = type === 'product_recs'
+  
+  // Extract unique categories
+  const categories = ['All', ...Array.from(new Set(data.map(d => d.category)))]
+  
+  const filteredData = filterCat === 'All' ? data : data.filter(d => d.category === filterCat)
+  
+  const exportCSV = () => {
+    const header = isProduct 
+      ? 'TITLE,CATEGORY,IMPACT,DESCRIPTION,RATIONALE\n'
+      : 'TITLE,CATEGORY,CONFIDENCE,TARGET_AUDIENCE,SUMMARY,MESSAGING_ANGLE\n'
+      
+    const rows = filteredData.map((r: any) => {
+      const escape = (str: string) => `"${(str || '').replace(/"/g, '""')}"`
+      if (isProduct) {
+        return `${escape(r.title)},${escape(r.category)},${escape(r.impact)},${escape(r.description)},${escape(r.rationale)}`
+      } else {
+        return `${escape(r.title)},${escape(r.category)},${escape(r.confidence)},${escape(r.target_audience)},${escape(r.summary)},${escape(r.messaging_angle)}`
+      }
+    }).join('\n')
+    
+    const blob = new Blob([header + rows], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `compete-${type}-${runId}.csv`
+    a.click()
+  }
+
+  return (
+    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      {/* Banner */}
+      <div style={{
+        background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+        padding: '20px 24px', marginBottom: 20,
+        borderLeft: `4px solid ${isProduct ? 'var(--mindtrip)' : 'var(--wanderboat)'}`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <span style={{ fontSize: 22 }}>{isProduct ? '🗺' : '📣'}</span>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 700 }}>
+              {isProduct ? 'Product Roadmap Suggestions' : 'Marketing Suggestions'}
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
+              {data.length} recommendations generated from this evaluation
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}>
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button onClick={exportCSV} style={{
+            fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
+            border: '1px solid var(--border)', color: 'var(--muted)', background: 'var(--surface2)',
+          }}>
+            Export CSV
+          </button>
+          <button onClick={onRegenerate} style={{
+            fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
+            border: '1px solid var(--border)', color: 'var(--mindtrip)', background: 'var(--surface2)',
+          }}>
+            ⟳ Regenerate
+          </button>
+        </div>
+      </div>
+
+      {/* Cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {filteredData.map((item: any, i) => (
+          <RecommendationCard key={i} item={item} isProduct={isProduct} index={i} />
+        ))}
+        {filteredData.length === 0 && (
+          <p style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+            No recommendations match your filters.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RecommendationCard({ item, isProduct, index }: { item: any, isProduct: boolean, index: number }) {
+  const badgeColors: Record<string, string> = {
+    'High Impact': 'var(--red)',
+    'Medium Impact': 'var(--yellow)',
+    'Low Effort': 'var(--green)',
+    'Competitive Risk': 'var(--wanderboat)',
+    'Strategic Differentiator': 'var(--mindtrip)',
+    'High': 'var(--green)',
+    'Medium': 'var(--yellow)',
+    'Low': 'var(--muted)'
+  }
+  
+  const impactOrConf = isProduct ? item.impact : item.confidence
+  const badgeColor = badgeColors[impactOrConf] || 'var(--muted)'
+  
+  return (
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '14px 18px 12px',
+        borderBottom: '1px solid var(--border)',
+        display: 'flex', alignItems: 'flex-start', gap: 12,
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>{item.title}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {/* Impact/Confidence chip */}
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+              background: `${badgeColor}18`, color: badgeColor, border: `1px solid ${badgeColor}33`,
+            }}>
+              {impactOrConf}
+            </span>
+            {/* Category chip */}
+            <span style={{
+              fontSize: 10, padding: '2px 8px', borderRadius: 20,
+              background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)',
+            }}>
+              {item.category}
+            </span>
+            {/* Target Audience chip (marketing only) */}
+            {!isProduct && item.target_audience && (
+              <span style={{
+                fontSize: 10, padding: '2px 8px', borderRadius: 20,
+                background: 'var(--surface2)', color: 'var(--muted)', border: '1px solid var(--border)',
+              }}>
+                Target: {item.target_audience}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: '14px 18px' }}>
+        <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text)', marginBottom: 12 }}>
+          {isProduct ? item.description : item.summary}
+        </p>
+        
+        <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+          <strong style={{ color: 'var(--text)' }}>{isProduct ? 'Rationale: ' : 'Messaging Angle: '}</strong>
+          {isProduct ? item.rationale : item.messaging_angle}
+        </p>
+        
+        {item.competitor_references && item.competitor_references.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>Competitors:</span>
+            {item.competitor_references.map((c: string) => (
+              <span key={c} style={{ fontSize: 11, color: c.toLowerCase() === 'mindtrip' ? 'var(--mindtrip)' : 'var(--wanderboat)', fontWeight: 600 }}>{c}</span>
+            ))}
+          </div>
+        )}
+
+        {item.evidence && (
+          <div style={{
+            background: 'var(--bg)', border: '1px solid var(--border)',
+            borderLeft: `3px solid var(--muted)`, borderRadius: 6,
+            padding: '10px 14px',
+          }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>
+              Evidence
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, fontStyle: 'italic' }}>
+              "{item.evidence}"
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+

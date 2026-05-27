@@ -55,6 +55,32 @@ export interface PivotRow {
   wanderboat_pass_rate: number
 }
 
+export interface ProductRecommendation {
+  title: string
+  description: string
+  rationale: string
+  category: string
+  impact: string
+  competitor_references: string[]
+  evidence: string
+}
+
+export interface MarketingRecommendation {
+  title: string
+  summary: string
+  target_audience: string
+  category: string
+  messaging_angle: string
+  confidence: string
+  competitor_references: string[]
+  evidence: string
+}
+
+export interface RecommendationsResponse {
+  product_recommendations: ProductRecommendation[]
+  marketing_recommendations: MarketingRecommendation[]
+}
+
 export interface QueryDetail {
   query: Record<string, unknown>
   assertions: Array<{ id: string; assertion_text: string; level: string; dimension: string }>
@@ -100,4 +126,5 @@ export const api = {
     outcomes: Record<string, number>;
     avgs: { mt: number; wb: number };
   }>(`/runs/${runId}/findings`),
+  recommendations: (runId: string) => post<RecommendationsResponse>(`/runs/${runId}/recommendations`),
 }
