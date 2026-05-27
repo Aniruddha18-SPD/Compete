@@ -440,7 +440,7 @@ async def run_recommendations(run_id: str, db=Depends(get_db)):
             "outcomes": {o: d["outcomes"].count(o) for o in set(d["outcomes"])},
         })
 
-    # Sample verdict reasoning per intent
+    # All verdict reasoning for failures
     cur4 = await db.execute(
         "SELECT q.intent, r.product, v.judge_reasoning, v.passed "
         "FROM verdicts v "
@@ -448,7 +448,7 @@ async def run_recommendations(run_id: str, db=Depends(get_db)):
         "JOIN queries q ON r.query_id=q.id "
         "JOIN assertions a ON v.assertion_id=a.id "
         "WHERE r.run_id=? AND a.level='critical' AND v.passed=0 "
-        "ORDER BY q.intent LIMIT 30",
+        "ORDER BY q.intent",
         (run_id,)
     )
     failures = [dict(r) for r in await cur4.fetchall()]
@@ -465,8 +465,8 @@ OVERALL RESULTS:
 PER-INTENT BREAKDOWN:
 {json.dumps(intent_summary, indent=2)}
 
-SAMPLE FAILURE REASONING (judge explanations for failed assertions):
-{json.dumps(failures[:20], indent=2)}
+ALL FAILURE REASONING (judge explanations for failed assertions across all queries):
+{json.dumps(failures, indent=2)}
 
 Generate actionable strategic recommendations based on these evaluation outcomes. Provide recommendations for two areas:
 1. Product Roadmap Suggestions
