@@ -116,7 +116,7 @@ export default function Trends() {
             {INTENTS.map(intent => (
               <div key={intent} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 22px' }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--mindtrip)', marginBottom: 16 }}>
-                  {INTENT_LABEL[intent] ?? intent} – Weekly Trend
+                  {INTENT_LABEL[intent] ?? intent} – Daily Trend
                 </p>
                 <LineChart points={data.byIntent[intent]} height={220} compact />
               </div>
