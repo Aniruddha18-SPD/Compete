@@ -29,9 +29,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Compete API", lifespan=lifespan)
 
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:4173"],
+    allow_origins=[o.strip() for o in _raw_origins.split(",")],
     allow_methods=["*"],
     allow_headers=["*"],
 )
